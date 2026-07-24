@@ -16,6 +16,7 @@ class HRJob extends Model
     protected $fillable = [
         'hr_id',
         'recruiter_opportunity_id',
+        'duplicated_from_job_id',
         'title',
         'department',
         'location',
@@ -30,6 +31,7 @@ class HRJob extends Model
         'responsibilities',
         'published_at',
         'closed_at',
+        'archived_at',
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class HRJob extends Model
         'openings' => 'integer',
         'published_at' => 'datetime',
         'closed_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function hr(): BelongsTo
@@ -48,6 +51,11 @@ class HRJob extends Model
     public function recruiterOpportunity(): BelongsTo
     {
         return $this->belongsTo(RecruiterOpportunity::class, 'recruiter_opportunity_id');
+    }
+
+    public function duplicatedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'duplicated_from_job_id');
     }
 
     public function applications(): HasMany
@@ -64,8 +72,18 @@ class HRJob extends Model
     {
         $this->forceFill([
             'status' => 'open',
-            'published_at' => now(),
+            'published_at' => $this->published_at ?? now(),
             'closed_at' => null,
+            'archived_at' => null,
+        ])->save();
+    }
+
+    public function draft(): void
+    {
+        $this->forceFill([
+            'status' => 'draft',
+            'closed_at' => null,
+            'archived_at' => null,
         ])->save();
     }
 
@@ -75,5 +93,44 @@ class HRJob extends Model
             'status' => 'closed',
             'closed_at' => now(),
         ])->save();
+    }
+
+    public function reopen(): void
+    {
+        $this->forceFill([
+            'status' => 'open',
+            'published_at' => $this->published_at ?? now(),
+            'closed_at' => null,
+            'archived_at' => null,
+        ])->save();
+    }
+
+    public function archive(): void
+    {
+        $this->forceFill([
+            'status' => 'archived',
+            'archived_at' => now(),
+            'closed_at' => $this->closed_at ?? now(),
+        ])->save();
+    }
+
+    public function duplicateFor(int $hrId): self
+    {
+        $copy = $this->replicate([
+            'published_at',
+            'closed_at',
+            'archived_at',
+        ]);
+
+        $copy->hr_id = $hrId;
+        $copy->duplicated_from_job_id = $this->id;
+        $copy->title = $this->title . ' (Copy)';
+        $copy->status = 'draft';
+        $copy->published_at = null;
+        $copy->closed_at = null;
+        $copy->archived_at = null;
+        $copy->save();
+
+        return $copy;
     }
 }
