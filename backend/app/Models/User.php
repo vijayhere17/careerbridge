@@ -130,12 +130,18 @@ public function hrActivityLogs(): HasMany
     'education',
 
     'skills',
+    'projects',
+    'certificates',
+    'languages',
+    'tags',
+    'resume_path',
 
     'linkedin',
     'github',
     'portfolio',
 
     'looking_for',
+    'hr_preferences',
 ];
 
     /**
@@ -161,7 +167,12 @@ public function hrActivityLogs(): HasMany
         'password' => 'hashed',
 
         'skills' => 'array',
+        'projects' => 'array',
+        'certificates' => 'array',
+        'languages' => 'array',
+        'tags' => 'array',
         'looking_for' => 'array',
+        'hr_preferences' => 'array',
     ];
 }
 }

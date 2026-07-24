@@ -401,27 +401,40 @@ Route::prefix('hr')->group(function () {
 
     Route::get('jobs', [HRJobController::class, 'index']);
     Route::post('jobs', [HRJobController::class, 'store']);
+    Route::post('jobs/bulk', [HRJobController::class, 'bulk']);
     Route::get('jobs/{id}', [HRJobController::class, 'show']);
     Route::put('jobs/{id}', [HRJobController::class, 'update']);
     Route::post('jobs/{id}/close', [HRJobController::class, 'close']);
+    Route::post('jobs/{id}/reopen', [HRJobController::class, 'reopen']);
+    Route::post('jobs/{id}/archive', [HRJobController::class, 'archive']);
+    Route::post('jobs/{id}/publish', [HRJobController::class, 'publish']);
+    Route::post('jobs/{id}/draft', [HRJobController::class, 'draft']);
+    Route::post('jobs/{id}/duplicate', [HRJobController::class, 'duplicate']);
     Route::delete('jobs/{id}', [HRJobController::class, 'destroy']);
 
     Route::get('applications', [HRApplicationController::class, 'index']);
     Route::post('applications', [HRApplicationController::class, 'store']);
     Route::post('applications/bulk', [HRApplicationController::class, 'bulkUpdate']);
+    Route::post('applications/{id}/shortlist', [HRApplicationController::class, 'shortlist']);
+    Route::post('applications/{id}/reject', [HRApplicationController::class, 'reject']);
     Route::get('applications/{id}', [HRApplicationController::class, 'show']);
     Route::put('applications/{id}', [HRApplicationController::class, 'update']);
     Route::delete('applications/{id}', [HRApplicationController::class, 'destroy']);
 
     Route::get('candidates', [HRCandidateController::class, 'index']);
     Route::get('candidates/{id}', [HRCandidateController::class, 'show']);
+    Route::post('candidates/{id}/tags', [HRCandidateController::class, 'updateTags']);
     Route::post('candidates/{id}/notes', [HRCandidateController::class, 'storeNote']);
     Route::delete('candidates/{id}/notes/{noteId}', [HRCandidateController::class, 'destroyNote']);
 
     Route::get('interviews', [HRInterviewController::class, 'index']);
     Route::post('interviews', [HRInterviewController::class, 'store']);
+    Route::get('interviews/calendar', [HRInterviewController::class, 'calendar']);
     Route::get('interviews/{id}', [HRInterviewController::class, 'show']);
     Route::put('interviews/{id}', [HRInterviewController::class, 'update']);
+    Route::post('interviews/{id}/complete', [HRInterviewController::class, 'complete']);
+    Route::post('interviews/{id}/cancel', [HRInterviewController::class, 'cancel']);
+    Route::post('interviews/{id}/reschedule', [HRInterviewController::class, 'reschedule']);
     Route::delete('interviews/{id}', [HRInterviewController::class, 'destroy']);
 
     Route::get('pipeline', [HRPipelineController::class, 'index']);
@@ -433,11 +446,14 @@ Route::prefix('hr')->group(function () {
     Route::post('profile', [HRProfileController::class, 'update']);
 
     Route::get('notifications', [HRNotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [HRNotificationController::class, 'unreadCount']);
     Route::post('notifications/{id}/read', [HRNotificationController::class, 'markRead']);
     Route::post('notifications/read-all', [HRNotificationController::class, 'markAllRead']);
+    Route::delete('notifications/{id}', [HRNotificationController::class, 'destroy']);
 
     Route::get('settings', [HRSettingsController::class, 'show']);
     Route::put('settings/profile', [HRSettingsController::class, 'updateProfile']);
     Route::post('settings/password', [HRSettingsController::class, 'changePassword']);
     Route::put('settings/preferences', [HRSettingsController::class, 'updatePreferences']);
+    Route::post('settings/avatar', [HRSettingsController::class, 'updateAvatar']);
 });

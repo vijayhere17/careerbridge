@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -78,25 +79,48 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "CareerBridge — Learn. Prepare. Get Referred. Get Hired." },
-      { name: "description", content: "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more." },
+      {
+        name: "description",
+        content:
+          "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more.",
+      },
       { name: "author", content: "CareerBridge" },
       { name: "theme-color", content: "#2563EB" },
       { property: "og:site_name", content: "CareerBridge" },
       { property: "og:title", content: "CareerBridge — Learn. Prepare. Get Referred. Get Hired." },
-      { property: "og:description", content: "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more." },
+      {
+        property: "og:description",
+        content:
+          "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@CareerBridge" },
       { name: "twitter:title", content: "CareerBridge — Learn. Prepare. Get Referred. Get Hired." },
-      { name: "twitter:description", content: "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c084b465-f688-4192-973f-fc5b3dc1681a/id-preview-46ddc355--b2d7c6ee-b4a1-447c-a479-e978ae601cc4.lovable.app-1781778310747.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c084b465-f688-4192-973f-fc5b3dc1681a/id-preview-46ddc355--b2d7c6ee-b4a1-447c-a479-e978ae601cc4.lovable.app-1781778310747.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Book 1:1 mentorship, mock interviews, resume reviews and referrals from professionals already working at Google, Meta, Amazon, Microsoft and more.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c084b465-f688-4192-973f-fc5b3dc1681a/id-preview-46ddc355--b2d7c6ee-b4a1-447c-a479-e978ae601cc4.lovable.app-1781778310747.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/c084b465-f688-4192-973f-fc5b3dc1681a/id-preview-46ddc355--b2d7c6ee-b4a1-447c-a479-e978ae601cc4.lovable.app-1781778310747.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,
@@ -113,6 +137,7 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        <Toaster />
         <Scripts />
       </body>
     </html>

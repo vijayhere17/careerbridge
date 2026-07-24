@@ -16,17 +16,29 @@ class HRInterview extends Model
         'application_id',
         'hr_id',
         'interviewer_name',
+        'panel',
         'interview_type',
         'meeting_link',
         'scheduled_at',
         'duration',
         'status',
         'feedback',
+        'notes',
+        'rating',
+        'result',
+        'completed_at',
+        'cancelled_at',
+        'rescheduled_at',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'duration' => 'integer',
+        'panel' => 'array',
+        'rating' => 'integer',
+        'completed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'rescheduled_at' => 'datetime',
     ];
 
     public function application(): BelongsTo
@@ -44,11 +56,34 @@ class HRInterview extends Model
         return $this->status === 'scheduled' && $this->scheduled_at?->isFuture();
     }
 
-    public function markCompleted(?string $feedback = null): void
+    public function markCompleted(?string $feedback = null, ?int $rating = null, ?string $result = null): void
     {
         $this->forceFill([
             'status' => 'completed',
             'feedback' => $feedback ?? $this->feedback,
+            'rating' => $rating ?? $this->rating,
+            'result' => $result ?? $this->result,
+            'completed_at' => now(),
+        ])->save();
+    }
+
+    public function cancel(?string $notes = null): void
+    {
+        $this->forceFill([
+            'status' => 'cancelled',
+            'notes' => $notes ?? $this->notes,
+            'cancelled_at' => now(),
+        ])->save();
+    }
+
+    public function reschedule(\DateTimeInterface|string $when): void
+    {
+        $this->forceFill([
+            'scheduled_at' => $when,
+            'status' => 'scheduled',
+            'rescheduled_at' => now(),
+            'cancelled_at' => null,
+            'completed_at' => null,
         ])->save();
     }
 }
