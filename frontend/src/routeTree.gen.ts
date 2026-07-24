@@ -15,6 +15,7 @@ import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MentorsRouteImport } from './routes/mentors'
+import { Route as MentorReviewRouteImport } from './routes/mentor-review'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DomainsRouteImport } from './routes/domains'
@@ -66,6 +67,11 @@ const PricingRoute = PricingRouteImport.update({
 const MentorsRoute = MentorsRouteImport.update({
   id: '/mentors',
   path: '/mentors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MentorReviewRoute = MentorReviewRouteImport.update({
+  id: '/mentor-review',
+  path: '/mentor-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -189,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/domains': typeof DomainsRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/mentor-review': typeof MentorReviewRoute
   '/mentors': typeof MentorsRouteWithChildren
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/domains': typeof DomainsRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/mentor-review': typeof MentorReviewRoute
   '/mentors': typeof MentorsRouteWithChildren
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
@@ -250,6 +258,7 @@ export interface FileRoutesById {
   '/domains': typeof DomainsRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/mentor-review': typeof MentorReviewRoute
   '/mentors': typeof MentorsRouteWithChildren
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
@@ -282,6 +291,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/forgot-password'
     | '/login'
+    | '/mentor-review'
     | '/mentors'
     | '/pricing'
     | '/profile'
@@ -312,6 +322,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/forgot-password'
     | '/login'
+    | '/mentor-review'
     | '/mentors'
     | '/pricing'
     | '/profile'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/domains'
     | '/forgot-password'
     | '/login'
+    | '/mentor-review'
     | '/mentors'
     | '/pricing'
     | '/profile'
@@ -373,6 +385,7 @@ export interface RootRouteChildren {
   DomainsRoute: typeof DomainsRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  MentorReviewRoute: typeof MentorReviewRoute
   MentorsRoute: typeof MentorsRouteWithChildren
   PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
@@ -433,6 +446,13 @@ declare module '@tanstack/react-router' {
       path: '/mentors'
       fullPath: '/mentors'
       preLoaderRoute: typeof MentorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mentor-review': {
+      id: '/mentor-review'
+      path: '/mentor-review'
+      fullPath: '/mentor-review'
+      preLoaderRoute: typeof MentorReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -636,6 +656,7 @@ const rootRouteChildren: RootRouteChildren = {
   DomainsRoute: DomainsRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  MentorReviewRoute: MentorReviewRoute,
   MentorsRoute: MentorsRouteWithChildren,
   PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,

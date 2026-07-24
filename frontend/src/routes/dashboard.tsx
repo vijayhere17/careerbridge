@@ -21,6 +21,8 @@ import { MentorWallet } from "@/components/mentor/Wallet";
 import { MentorReviews } from "@/components/mentor/Reviews";
 import { MentorNotifications } from "@/components/mentor/Notifications";
 import { MentorProfileSettings } from "@/components/mentor/ProfileSettings";
+import { MentorSetupPage } from "@/components/mentor/MentorSetup";
+import { MentorReviewPage } from "@/components/mentor/MentorReview";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bell, BriefcaseBusiness, CalendarDays, Compass, FileText,
@@ -122,6 +124,15 @@ function DashboardPage() {
   const [active, setActive]     = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading]   = useState(true);
+  const [mentorOnboardingStatus, setMentorOnboardingStatus] = useState<string | null>(null);
+
+  const [dashboardStats, setDashboardStats] = useState({
+    bookings: 0,
+    appliedJobs: 0,
+    savedMentors: 0,
+    walletBalance: 0,
+});
+const [upcomingSessions, setUpcomingSessions] = useState<MentorSession[]>([]);
 
   useEffect(() => {
     document.body.style.overflow = sidebarOpen ? "hidden" : "";
@@ -133,14 +144,48 @@ function DashboardPage() {
       const token = getAuthToken();
       if (!token) { router.navigate({ to: "/login" }); return; }
       try {
-        const [a, s] = await Promise.all([
-          apiFetch<{ user: AuthUser }>("/api/auth/user"),
-          apiFetch<{ sessions: MentorSession[] }>("/api/sessions"),
-        ]);
-        setAuth(a.user, token);
-        setUser(a.user);
-        setSessions(s.sessions);
-        setActive(menu[a.user.role][0].label);
+        const a = await apiFetch<{
+  user: AuthUser;
+  mentor_onboarding?: {
+    has_profile: boolean;
+    status: string;
+    verified: boolean;
+  } | null;
+}>("/api/auth/user");
+
+setAuth(a.user, token);
+setUser(a.user);
+
+if (a.user.role === "mentor") {
+  setMentorOnboardingStatus(
+    a.mentor_onboarding?.status ?? "profile_setup"
+  );
+
+  if (
+    !a.mentor_onboarding ||
+    a.mentor_onboarding.status !== "approved"
+  ) {
+    return;
+  }
+}
+
+const [s, d] = await Promise.all([
+  apiFetch<{ sessions: MentorSession[] }>("/api/sessions"),
+  apiFetch<{
+    stats: {
+      bookings: number;
+      appliedJobs: number;
+      savedMentors: number;
+      walletBalance: number;
+    };
+    upcomingSessions: MentorSession[];
+  }>("/api/dashboard"),
+]);
+
+setSessions(s.sessions);
+setDashboardStats(d.stats);
+setUpcomingSessions(d.upcomingSessions);
+setActive(menu[a.user.role][0].label);
       } catch {
         clearAuth();
         router.navigate({ to: "/login" });
@@ -162,11 +207,24 @@ function DashboardPage() {
 
   if (loading || !user) return <div className="min-h-screen bg-background" />;
 
+if (user.role === "mentor") {
+  if (mentorOnboardingStatus === "profile_setup") {
+    return <MentorSetupPage />;
+  }
+
+  if (
+    mentorOnboardingStatus === "under_review" ||
+    mentorOnboardingStatus === "rejected"
+  ) {
+    return <MentorReviewPage />;
+  }
+}
+
   const theme      = roleTheme[user.role];
   const activeItem = items.find((i) => i.label === active) ?? items[0];
   const firstName  = user.name.split(" ")[0];
   const initials   = user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
-  const isFullPage = user.role === "seeker" && FULL_PAGE_VIEWS.includes(active);
+
 
   const navigate = (label: string) => {
     setActive(label);
@@ -177,7 +235,14 @@ const renderContent = () => {
 
     // Candidate
     if (user.role === "seeker") {
-        if (active === "Dashboard Home") return <CandidateDashboard sessions={sessions} onNavigate={navigate} />;
+        if (active === "Dashboard Home") return (
+    <CandidateDashboard
+    sessions={sessions}
+    upcomingSessions={upcomingSessions}
+    dashboardStats={dashboardStats}
+    onNavigate={navigate}
+/>
+);
         if (active === "Find Mentors") return <FindMentors />;
         if (active === "My Bookings") return <MyBookings />;
         if (active === "Saved Mentors") return <SavedMentors onFindMentors={() => navigate("Find Mentors")} />;
@@ -191,7 +256,7 @@ const renderContent = () => {
 
     // Mentor
     if (user.role === "mentor") {
-        if (active === "Dashboard") return <MentorDashboard />;
+        if (active === "Dashboard") return <MentorDashboard onNavigate={navigate} />;
         if (active === "Profile") return <MentorProfile />;
         if (active === "Services") return <MentorServices />;
         if (active === "Availability") return <MentorAvailability />;
@@ -287,11 +352,11 @@ const renderContent = () => {
               {/* Quick stats for seeker */}
               {user.role === "seeker" && (
                 <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "Sessions", value: sessions.length },
-                    { label: "Applied",  value: "7" },
-                    { label: "Saved",    value: "5" },
-                  ].map(({ label, value }) => (
+                 {[
+    { label: "Sessions", value: dashboardStats.bookings },
+    { label: "Applied", value: dashboardStats.appliedJobs },
+    { label: "Saved", value: dashboardStats.savedMentors },
+].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-white/10 p-2 text-center backdrop-blur-sm">
                       <p className="text-white font-bold text-base">{value}</p>
                       <p className="text-white/70 text-[10px]">{label}</p>
@@ -357,15 +422,6 @@ const renderContent = () => {
 
         {/* ── Main content ── */}
         <main className="flex-1 min-w-0 px-4 py-5 pb-24 lg:pb-6">
-          {!isFullPage && (
-            <div className="mb-5 rounded-2xl border border-border bg-surface px-5 py-4">
-              <p className={`text-[11px] font-bold uppercase tracking-widest ${theme.accent}`}>
-                {theme.name} workspace
-              </p>
-              <h1 className="mt-1 font-display text-xl font-bold">Hi, {firstName} 👋</h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">{activeItem.description}</p>
-            </div>
-          )}
           {renderContent()}
         </main>
       </div>
@@ -402,18 +458,46 @@ const renderContent = () => {
   );
 }
 
-function CandidateDashboard({ sessions, onNavigate }: {
+function CandidateDashboard({
+  sessions,
+  upcomingSessions,
+  dashboardStats,
+  onNavigate,
+}: {
   sessions: MentorSession[];
+  upcomingSessions: MentorSession[];
+  dashboardStats: {
+    bookings: number;
+    appliedJobs: number;
+    savedMentors: number;
+    walletBalance: number;
+  };
   onNavigate: (label: string) => void;
 }) {
-  const upcoming = sessions.filter((s) => s.status !== "completed").slice(0, 3);
+  const upcoming = upcomingSessions.slice(0, 3);
 
   const stats = [
-    { label: "Sessions",  value: sessions.length.toString(), icon: CalendarDays },
-    { label: "Applied",   value: "7",  icon: BriefcaseBusiness },
-    { label: "Saved",     value: "5",  icon: UserRound },
-    { label: "Balance",   value: "₹2,235", icon: Wallet },
-  ];
+  {
+    label: "Sessions",
+    value: dashboardStats.bookings.toString(),
+    icon: CalendarDays,
+  },
+  {
+    label: "Applied",
+    value: dashboardStats.appliedJobs.toString(),
+    icon: BriefcaseBusiness,
+  },
+  {
+    label: "Saved",
+    value: dashboardStats.savedMentors.toString(),
+    icon: UserRound,
+  },
+  {
+    label: "Balance",
+    value: `₹${dashboardStats.walletBalance}`,
+    icon: Wallet,
+  },
+];
 
   const quickActions = [
     { label: "Find a Mentor",  desc: "Connect with experts",     icon: UsersRound,      nav: "Find Mentors" },

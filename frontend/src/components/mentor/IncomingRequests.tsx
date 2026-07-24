@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Video, Phone, MessageCircle, Clock, Calendar,
   CheckCircle2, XCircle, User, ChevronRight, X,
   AlertCircle, DollarSign,
 } from "lucide-react";
+import { apiFetch } from "@/lib/auth";
 
 type SessionType = "Video Call" | "Audio Call" | "Chat";
 type RequestStatus = "pending" | "accepted" | "rejected";
@@ -100,10 +101,13 @@ const MOCK_REQUESTS: Request[] = [
   },
 ];
 
-const SESSION_ICONS: Record<SessionType, React.ElementType> = {
+const SESSION_ICONS: Record<string, React.ElementType> = {
   "Video Call": Video,
+  "video": Video,
   "Audio Call": Phone,
-  "Chat":       MessageCircle,
+  "audio": Phone,
+  "Chat": MessageCircle,
+  "chat": MessageCircle,
 };
 
 const STATUS_CONFIG: Record<RequestStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -126,10 +130,10 @@ function formatDate(d: string) {
 function DetailDrawer({ request, onClose, onAccept, onReject }: {
   request: Request;
   onClose: () => void;
-  onAccept: (id: string) => void;
-  onReject: (id: string) => void;
+  onAccept: (id: string) => Promise<void>;
+onReject: (id: string) => Promise<void>;
 }) {
-  const Icon = SESSION_ICONS[request.sessionType];
+  const Icon = SESSION_ICONS[request.sessionType] ?? Video;
   const status = STATUS_CONFIG[request.status];
   const StatusIcon = status.icon;
 
@@ -199,13 +203,13 @@ function DetailDrawer({ request, onClose, onAccept, onReject }: {
         {request.status === "pending" && (
           <div className="sticky bottom-0 border-t border-border bg-surface p-4 flex gap-2">
             <button
-              onClick={() => { onReject(request.id); onClose(); }}
+              onClick={() => onReject(request.id)}
               className="flex-1 rounded-xl border border-red-200 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
             >
               <XCircle className="h-4 w-4" /> Decline
             </button>
             <button
-              onClick={() => { onAccept(request.id); onClose(); }}
+              onClick={() => onAccept(request.id)}
               className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="h-4 w-4" /> Accept
@@ -220,10 +224,10 @@ function DetailDrawer({ request, onClose, onAccept, onReject }: {
 function RequestCard({ request, onView, onAccept, onReject }: {
   request: Request;
   onView: () => void;
-  onAccept: (id: string) => void;
-  onReject: (id: string) => void;
+  onAccept: (id: string) => Promise<void>;
+onReject: (id: string) => Promise<void>;
 }) {
-  const Icon = SESSION_ICONS[request.sessionType];
+  const Icon = SESSION_ICONS[request.sessionType] ?? Video;
   const status = STATUS_CONFIG[request.status];
   const StatusIcon = status.icon;
 
@@ -257,35 +261,23 @@ function RequestCard({ request, onView, onAccept, onReject }: {
             <span className="text-[11px] font-bold text-primary">₹{request.amount.toLocaleString()}</span>
           </div>
 
-          {request.status === "pending" ? (
-            <div className="mt-3 flex gap-2">
-              <button
-                onClick={() => onReject(request.id)}
-                className="flex-1 rounded-lg border border-red-200 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Decline
-              </button>
-              <button
-                onClick={() => onAccept(request.id)}
-                className="flex-1 rounded-lg bg-primary py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                Accept
-              </button>
-              <button
-                onClick={onView}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted transition-colors"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-[11px] text-muted-foreground">{request.requestedAt}</span>
-              <button onClick={onView} className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
-                Details <ChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
+          <div className="mt-3 flex items-center justify-between gap-3">
+  <span className="text-[11px] text-muted-foreground">
+    {request.requestedAt}
+  </span>
+
+  <button
+    type="button"
+    onClick={onView}
+    className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+  >
+    {request.status === "pending"
+      ? "View Request Details"
+      : "View Details"}
+
+    <ChevronRight className="h-4 w-4" />
+  </button>
+</div>
         </div>
       </div>
     </div>
@@ -293,17 +285,66 @@ function RequestCard({ request, onView, onAccept, onReject }: {
 }
 
 export function MentorIncomingRequests() {
-  const [requests, setRequests] = useState<Request[]>(MOCK_REQUESTS);
+ const [requests, setRequests] = useState<Request[]>([]);
+const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<RequestStatus | "all">("all");
   const [selected, setSelected] = useState<Request | null>(null);
 
-  const handleAccept = (id: string) => {
-    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "accepted" as RequestStatus } : r));
-  };
+  useEffect(() => {
+  async function loadRequests() {
+    try {
+      const data = await apiFetch<{
+        requests: Request[];
+      }>("/api/mentor/incoming-requests");
 
-  const handleReject = (id: string) => {
-    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status: "rejected" as RequestStatus } : r));
-  };
+      setRequests(data.requests);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadRequests();
+}, []);
+
+const handleAccept = async (id: string) => {
+  try {
+    await apiFetch(
+      `/api/mentor/incoming-requests/${id}/accept`,
+      {
+        method: "POST",
+      }
+    );
+
+    setRequests((prev) =>
+      prev.filter((request) => request.id !== id)
+    );
+
+    setSelected(null);
+  } catch (error) {
+    console.error("Accept booking error:", error);
+  }
+};
+
+const handleReject = async (id: string) => {
+  try {
+    await apiFetch(
+      `/api/mentor/incoming-requests/${id}/reject`,
+      {
+        method: "POST",
+      }
+    );
+
+    setRequests((prev) =>
+      prev.filter((request) => request.id !== id)
+    );
+
+    setSelected(null);
+  } catch (error) {
+    console.error("Reject booking error:", error);
+  }
+};
 
   const filtered = activeTab === "all" ? requests : requests.filter((r) => r.status === activeTab);
 
@@ -357,7 +398,13 @@ export function MentorIncomingRequests() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+     {loading ? (
+    <div className="py-16 text-center">
+        <p className="text-sm text-muted-foreground">
+            Loading requests...
+        </p>
+    </div>
+) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted mb-3">
             <User className="h-7 w-7 text-muted-foreground" />
@@ -385,8 +432,8 @@ export function MentorIncomingRequests() {
         <DetailDrawer
           request={selected}
           onClose={() => setSelected(null)}
-          onAccept={(id) => { handleAccept(id); setSelected(null); }}
-          onReject={(id) => { handleReject(id); setSelected(null); }}
+          onAccept={handleAccept}
+onReject={handleReject}
         />
       )}
     </div>

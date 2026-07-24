@@ -10,15 +10,33 @@ class MentorReview extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['mentor_id', 'candidate_id', 'rating', 'review'];
+    protected $fillable = [
+        'booking_id',
+        'mentor_id',
+        'user_id',
+        'rating',
+        'comment',
+        'status',
+        'helpful_count',
+        'submitted_at',
+    ];
 
-    public function mentor(): BelongsTo
+    protected $casts = [
+        'submitted_at' => 'datetime',
+    ];
+
+ public function mentor(): BelongsTo
+{
+    return $this->belongsTo(MentorProfile::class, 'mentor_id');
+}
+
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(MentorProfile::class, 'mentor_id');
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function candidate(): BelongsTo
+    public function booking(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'candidate_id');
+        return $this->belongsTo(MentorBooking::class, 'booking_id');
     }
 }

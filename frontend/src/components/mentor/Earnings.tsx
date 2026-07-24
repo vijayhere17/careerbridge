@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
+
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -17,66 +20,99 @@ type TransactionType =
 interface Transaction {
   id: number;
   candidate: string;
-  service: TransactionType;
-  company: string;
+  service: string;
   amount: number;
   date: string;
-  status: "Paid" | "Pending";
+  status: string;
+  reference: string;
 }
 
-const transactions: Transaction[] = [
-  {
-    id: 1,
-    candidate: "Rahul Sharma",
-    service: "Session",
-    company: "Google",
-    amount: 1499,
-    date: "21 Jun 2026",
-    status: "Paid",
-  },
-  {
-    id: 2,
-    candidate: "Priya Shah",
-    service: "Resume Review",
-    company: "Adobe",
-    amount: 999,
-    date: "22 Jun 2026",
-    status: "Paid",
-  },
-  {
-    id: 3,
-    candidate: "Amit Patel",
-    service: "Career Guidance",
-    company: "Infosys",
-    amount: 699,
-    date: "24 Jun 2026",
-    status: "Pending",
-  },
-];
+interface Summary {
+  total_earnings: number;
+  available_balance: number;
+  pending_balance: number;
+  this_month: number;
+}
 
-const monthly = [
-  { month: "Jan", value: 12000 },
-  { month: "Feb", value: 15000 },
-  { month: "Mar", value: 19000 },
-  { month: "Apr", value: 21000 },
-  { month: "May", value: 24500 },
-  { month: "Jun", value: 28900 },
-];
+interface Monthly {
+  month: string;
+  amount: number;
+}
+
+interface Breakdown {
+  service: string;
+  amount: number;
+  percentage: number;
+}
+
+interface EarningsResponse {
+  summary: Summary;
+  monthly: Monthly[];
+  breakdown: Breakdown[];
+  transactions: Transaction[];
+}
 
 export function MentorEarnings() {
 
-  const totalEarnings = transactions.reduce(
-    (sum, item) => sum + item.amount,
-    0
+  const [loading, setLoading] = useState(true);
+
+  const [summary, setSummary] = useState<Summary>({
+    total_earnings: 0,
+    available_balance: 0,
+    pending_balance: 0,
+    this_month: 0,
+  });
+
+  const [monthly, setMonthly] = useState<Monthly[]>([]);
+
+  const [breakdown, setBreakdown] = useState<Breakdown[]>([]);
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+
+  useEffect(() => {
+
+  async function loadData() {
+
+    try {
+
+      const response = await apiFetch<EarningsResponse>(
+        "/api/mentor/earnings"
+      );
+
+      setSummary(response.summary);
+
+      setMonthly(response.monthly);
+
+      setBreakdown(response.breakdown);
+
+      setTransactions(response.transactions);
+
+    } catch (e) {
+
+      console.error(e);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+
+  loadData();
+
+}, []);
+
+if (loading) {
+
+  return (
+    <div className="py-20 text-center">
+      Loading...
+    </div>
   );
 
-  const availableBalance = 18400;
-
-  const pendingBalance = transactions
-    .filter((item) => item.status === "Pending")
-    .reduce((sum, item) => sum + item.amount, 0);
-
-  const thisMonth = 24500;
+}
 
   return (
 
@@ -112,35 +148,35 @@ export function MentorEarnings() {
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
 
         {[
-          {
-            title: "Total Earnings",
-            value: `₹${totalEarnings.toLocaleString()}`,
-            icon: IndianRupee,
-            color: "bg-green-50 text-green-600",
-          },
+  {
+    title: "Total Earnings",
+    value: `₹${summary.total_earnings.toLocaleString("en-IN")}`,
+    icon: IndianRupee,
+    color: "bg-green-50 text-green-600",
+  },
 
-          {
-            title: "Available",
-            value: `₹${availableBalance.toLocaleString()}`,
-            icon: Wallet,
-            color: "bg-blue-50 text-blue-600",
-          },
+  {
+    title: "Available",
+    value: `₹${summary.available_balance.toLocaleString("en-IN")}`,
+    icon: Wallet,
+    color: "bg-blue-50 text-blue-600",
+  },
 
-          {
-            title: "Pending",
-            value: `₹${pendingBalance.toLocaleString()}`,
-            icon: CreditCard,
-            color: "bg-orange-50 text-orange-600",
-          },
+  {
+    title: "Pending",
+    value: `₹${summary.pending_balance.toLocaleString("en-IN")}`,
+    icon: CreditCard,
+    color: "bg-orange-50 text-orange-600",
+  },
 
-          {
-            title: "This Month",
-            value: `₹${thisMonth.toLocaleString()}`,
-            icon: Calendar,
-            color: "bg-violet-50 text-violet-600",
-          },
+  {
+    title: "This Month",
+    value: `₹${summary.this_month.toLocaleString("en-IN")}`,
+    icon: Calendar,
+    color: "bg-violet-50 text-violet-600",
+  },
 
-        ].map((card) => {
+].map((card) => {
 
           const Icon = card.icon;
 
@@ -197,226 +233,223 @@ export function MentorEarnings() {
 
           </div>
 
-          <div className="space-y-5">
+       <div className="space-y-5">
 
-            {monthly.map((item) => {
+  {monthly.map((item) => {
 
-              const percentage = (item.value / 30000) * 100;
+    const percentage =
+      summary.total_earnings > 0
+        ? (item.amount / summary.total_earnings) * 100
+        : 0;
 
-              return (
+    return (
 
-                <div key={item.month}>
+      <div key={item.month}>
 
-                  <div className="mb-2 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between">
 
-                    <span className="text-sm font-medium">
-                      {item.month}
-                    </span>
+          <span className="text-sm font-medium">
+            {item.month}
+          </span>
 
-                    <span className="text-sm font-semibold">
-                      ₹{item.value.toLocaleString()}
-                    </span>
-
-                  </div>
-
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{
-                        width: `${percentage}%`,
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
-              );
-
-            })}
-
-          </div>
+          <span className="text-sm font-semibold">
+            ₹{item.amount.toLocaleString("en-IN")}
+          </span>
 
         </div>
 
-        {/* Earnings Breakdown */}
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
 
-        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-
-          <h2 className="text-lg font-bold">
-            Earnings Breakdown
-          </h2>
-
-          <p className="mb-5 text-sm text-muted-foreground">
-            Revenue by service
-          </p>
-
-          <div className="space-y-4">
-
-            {[
-              {
-                service: "Mock Interview",
-                amount: "₹12,400",
-                percent: "48%",
-              },
-              {
-                service: "Resume Review",
-                amount: "₹5,600",
-                percent: "22%",
-              },
-              {
-                service: "Career Guidance",
-                amount: "₹3,900",
-                percent: "15%",
-              },
-              {
-                service: "Referral Bonus",
-                amount: "₹2,600",
-                percent: "10%",
-              },
-              {
-                service: "Other",
-                amount: "₹1,000",
-                percent: "5%",
-              },
-
-            ].map((item) => (
-
-              <div
-                key={item.service}
-                className="flex items-center justify-between rounded-xl border border-border p-3"
-              >
-
-                <div>
-
-                  <p className="font-medium">
-                    {item.service}
-                  </p>
-
-                  <p className="text-xs text-muted-foreground">
-                    {item.percent} of total income
-                  </p>
-
-                </div>
-
-                <span className="font-bold">
-                  {item.amount}
-                </span>
-
-              </div>
-
-            ))}
-
-          </div>
+          <div
+            className="h-full rounded-full bg-primary transition-all"
+            style={{
+              width: `${Math.min(percentage, 100)}%`,
+            }}
+          />
 
         </div>
 
       </div>
 
-            {/* Recent Transactions */}
+    );
 
-      <div className="rounded-2xl border border-border bg-white shadow-sm">
+  })}
 
-        <div className="flex items-center justify-between border-b border-border px-6 py-5">
+</div>
+
+        </div>
+
+
+       {/* Earnings Breakdown */}
+
+<div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+
+  <h2 className="text-lg font-bold">
+    Earnings Breakdown
+  </h2>
+
+  <p className="mb-5 text-sm text-muted-foreground">
+    Revenue by service
+  </p>
+
+  <div className="space-y-4">
+
+    {breakdown.length > 0 ? (
+
+      breakdown.map((item) => (
+
+        <div
+          key={item.service}
+          className="flex items-center justify-between rounded-xl border border-border p-3"
+        >
 
           <div>
 
-            <h2 className="text-lg font-bold">
-              Recent Transactions
-            </h2>
+            <p className="font-medium">
+              {item.service}
+            </p>
 
-            <p className="text-sm text-muted-foreground">
-              Latest payments received from candidates
+            <p className="text-xs text-muted-foreground">
+              {item.percentage}% of total income
             </p>
 
           </div>
 
-          <button className="text-sm font-semibold text-primary hover:underline">
-            View All
-          </button>
+          <span className="font-bold">
+            ₹{Number(item.amount).toLocaleString("en-IN")}
+          </span>
 
         </div>
 
-        <div className="divide-y divide-border">
+      ))
 
-          {transactions.map((item) => (
+    ) : (
 
-            <div
-              key={item.id}
-              className="flex flex-col gap-4 px-6 py-5 transition hover:bg-muted/40 lg:flex-row lg:items-center lg:justify-between"
-            >
+      <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+        No earnings available.
+      </div>
 
-              {/* Left */}
+    )}
 
-              <div className="flex items-center gap-4">
+  </div>
 
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">
+</div>
 
-                  {item.candidate
-                    .split(" ")
-                    .map((word) => word[0])
-                    .join("")}
+</div>
 
-                </div>
+{/* Recent Transactions */}
 
-                <div>
+<div className="rounded-2xl border border-border bg-white shadow-sm">
 
-                  <h3 className="font-semibold">
-                    {item.candidate}
-                  </h3>
+  <div className="flex items-center justify-between border-b border-border px-6 py-5">
 
-                  <p className="text-sm text-muted-foreground">
-                    {item.service}
-                  </p>
+    <div>
 
-                  <p className="text-xs text-primary">
-                    {item.company}
-                  </p>
+      <h2 className="text-lg font-bold">
+        Recent Transactions
+      </h2>
 
-                </div>
+      <p className="text-sm text-muted-foreground">
+        Latest payments received from candidates
+      </p>
 
-              </div>
+    </div>
 
-              {/* Right */}
+    <button className="text-sm font-semibold text-primary hover:underline">
+      View All
+    </button>
 
-              <div className="flex flex-wrap items-center gap-5">
+  </div>
 
-                <div className="text-right">
+  <div className="divide-y divide-border">
 
-                  <p className="font-bold">
-                    ₹{item.amount}
-                  </p>
+    {transactions.length > 0 ? (
 
-                  <p className="text-xs text-muted-foreground">
-                    {item.date}
-                  </p>
+      transactions.map((item) => (
 
-                </div>
+        <div
+          key={item.id}
+          className="flex flex-col gap-4 px-6 py-5 transition hover:bg-muted/40 lg:flex-row lg:items-center lg:justify-between"
+        >
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    item.status === "Paid"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-orange-50 text-orange-700"
-                  }`}
-                >
-                  {item.status}
-                </span>
+          {/* Left */}
 
-                <button className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">
+          <div className="flex items-center gap-4">
 
-                  Receipt
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 font-bold text-primary">
 
-                </button>
-
-              </div>
+              {item.candidate
+                .split(" ")
+                .map((word) => word[0])
+                .join("")}
 
             </div>
 
-          ))}
+            <div>
+
+              <h3 className="font-semibold">
+                {item.candidate}
+              </h3>
+
+              <p className="text-sm text-muted-foreground">
+                {item.service}
+              </p>
+
+              <p className="text-xs text-primary">
+                {item.reference}
+              </p>
+
+            </div>
+
+          </div>
+
+          {/* Right */}
+
+          <div className="flex flex-wrap items-center gap-5">
+
+            <div className="text-right">
+
+              <p className="font-bold">
+                ₹{Number(item.amount).toLocaleString("en-IN")}
+              </p>
+
+              <p className="text-xs text-muted-foreground">
+                {item.date}
+              </p>
+
+            </div>
+
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                item.status.toLowerCase() === "success"
+                  ? "bg-green-50 text-green-700"
+                  : item.status.toLowerCase() === "pending"
+                  ? "bg-orange-50 text-orange-700"
+                  : "bg-red-50 text-red-700"
+              }`}
+            >
+              {item.status}
+            </span>
+
+            <button className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted">
+              Receipt
+            </button>
+
+          </div>
 
         </div>
+
+      ))
+
+    ) : (
+
+      <div className="p-10 text-center text-sm text-muted-foreground">
+        No transactions found.
+      </div>
+
+    )}
+
+ </div>
 
       </div>
 

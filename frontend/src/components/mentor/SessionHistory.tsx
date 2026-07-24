@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -15,6 +15,7 @@ import {
   User,
   IndianRupee,
 } from "lucide-react";
+import { apiFetch } from "@/lib/auth";
 
 type SessionType = "Video Call" | "Audio Call" | "Chat";
 
@@ -231,8 +232,29 @@ export function MentorSessionHistory() {
     SessionStatus | "All"
   >("All");
 
+  const [history, setHistory] = useState<HistorySession[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  async function loadHistory() {
+    try {
+      const data = await apiFetch<{
+        sessions: HistorySession[];
+      }>("/api/mentor/session-history");
+
+      setHistory(data.sessions);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadHistory();
+}, []);
+
   const sessions = useMemo(() => {
-    return HISTORY.filter((item) => {
+    return history.filter((item) => {
 
       const matchName =
         item.candidateName
@@ -389,9 +411,16 @@ export function MentorSessionHistory() {
 
             {/* Session History List */}
 
-      <div className="space-y-4">
+      {loading ? (
+  <div className="flex items-center justify-center py-16">
+    <p className="text-sm text-muted-foreground">
+      Loading session history...
+    </p>
+  </div>
+) : (
+  <div className="space-y-4">
 
-        {sessions.map((session) => {
+    {sessions.map((session) => {
 
           const SessionIcon = SESSION_ICONS[session.sessionType];
 
@@ -484,8 +513,8 @@ export function MentorSessionHistory() {
 
         })}
 
-      </div>
-
     </div>
+)}
+</div>
   );
 }

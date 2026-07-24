@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import { Star, Send, X, CheckCircle2, MessageSquare, ThumbsUp, Edit2 } from "lucide-react";
 
 type ReviewStatus = "pending" | "submitted";
@@ -264,19 +265,80 @@ function ReviewCard({ review, onEdit }: { review: Review; onEdit: (r: Review) =>
 }
 
 export function ReviewsPage() {
-  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<Review[]>([]);
+const [loading, setLoading] = useState(true);
   const [editTarget, setEditTarget] = useState<Review | null>(null);
   const [activeTab, setActiveTab] = useState<"all" | "submitted" | "pending">("all");
 
-  const handleSubmit = (id: string, rating: number, comment: string) => {
-    setReviews((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, rating, comment, status: "submitted", submittedDate: new Date().toISOString().split("T")[0] }
-          : r
-      )
-    );
+  useEffect(() => {
+  const loadReviews = async () => {
+    try {
+      const data = await apiFetch<{ reviews: any[] }>("/api/reviews");
+
+      setReviews(
+        data.reviews.map((review) => ({
+          id: review.id,
+          mentorName: review.mentorName,
+          mentorInitials: review.mentorInitials,
+          service: review.service,
+          sessionDate: review.sessionDate,
+          rating: review.rating,
+          comment: review.comment,
+          status: review.status,
+          helpfulCount: review.helpfulCount,
+          submittedDate: review.submittedDate,
+        }))
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  loadReviews();
+}, []);
+
+const handleSubmit = async (
+  id: string,
+  rating: number,
+  comment: string
+) => {
+  try {
+    const response = await apiFetch<{
+      success: boolean;
+      review: any;
+    }>("/api/reviews", {
+      method: "POST",
+      body: JSON.stringify({
+        review_id: id,
+        rating,
+        comment,
+      }),
+    });
+
+    if (response.success) {
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                rating,
+                comment,
+                status: "submitted",
+                submittedDate: response.review.submittedDate,
+              }
+            : r
+        )
+      );
+
+      setEditTarget(null);
+    }
+  } catch (error) {
+    console.error(error);
+    alert("Failed to submit review.");
+  }
+};
 
   const submitted = reviews.filter((r) => r.status === "submitted");
   const pending   = reviews.filter((r) => r.status === "pending");
@@ -288,6 +350,14 @@ export function ReviewsPage() {
     activeTab === "all"       ? reviews   :
     activeTab === "submitted" ? submitted :
     pending;
+
+    if (loading) {
+  return (
+    <div className="flex justify-center py-20">
+      Loading reviews...
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">

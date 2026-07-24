@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   GraduationCap, MapPin, Clock, Search, X,
   CheckCircle2, XCircle, AlertCircle, Eye,
@@ -377,7 +378,8 @@ function InternshipCard({ intern, onView }: { intern: AppliedInternship; onView:
 }
 
 export function AppliedInternships() {
-  const [internships] = useState<AppliedInternship[]>(MOCK_INTERNSHIPS);
+  const [internships, setInternships] = useState<AppliedInternship[]>([]);
+const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AppStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AppliedInternship | null>(null);
@@ -406,6 +408,77 @@ export function AppliedInternships() {
     { label: "Interviews",    value: internships.filter((i) => i.status === "Interview Scheduled").length },
     { label: "Offers",        value: internships.filter((i) => ["Offer Received", "Selected"].includes(i.status)).length },
   ];
+
+  useEffect(() => {
+  const loadInternships = async () => {
+    try {
+      const data = await apiFetch<{ applications: any[] }>(
+        "/api/opportunities/applications"
+      );
+
+      setInternships(
+        data.applications
+          .filter(
+            (app) =>
+              app.jobType === "Internship" ||
+              app.jobType === "Intern"
+          )
+          .map((app) => ({
+            id: app.id,
+
+            company: app.company,
+
+            initials:
+              app.companyLogo ||
+              app.company
+                ?.split(" ")
+                .map((x: string) => x[0])
+                .join("")
+                .substring(0, 2)
+                .toUpperCase(),
+
+            role: app.title,
+
+            location: app.location,
+
+            stipend: app.salary,
+
+            duration: "3 Months",
+
+            workType: app.workType,
+
+            appliedDate: app.appliedAt,
+
+            lastUpdate: app.lastUpdate,
+
+            status: app.status,
+
+            interviewDate: app.interviewDate,
+
+            offerStipend: app.offerAmount,
+
+            rejectionReason: app.rejectionReason,
+
+            ppoChance: true,
+          }))
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadInternships();
+}, []);
+
+if (loading) {
+  return (
+    <div className="flex justify-center py-20">
+      Loading internships...
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">

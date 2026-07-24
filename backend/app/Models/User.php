@@ -7,12 +7,15 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\WithdrawRequest;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     public function mentorProfile()
     {
@@ -24,24 +27,79 @@ class User extends Authenticatable
     return $this->hasMany(SavedOpportunity::class);
 }
 
+public function wallet(): HasOne
+{
+    return $this->hasOne(Wallet::class);
+}
+
+public function withdrawRequests(): HasMany
+{
+    return $this->hasMany(WithdrawRequest::class);
+}
+
+public function walletTransactions(): HasMany
+{
+    return $this->hasMany(WalletTransaction::class);
+}
+
+public function jobApplications(): HasMany
+{
+    return $this->hasMany(JobApplication::class);
+}
+
+
+
+public function reviewsGiven(): HasMany
+{
+    return $this->hasMany(MentorReview::class, 'user_id');
+}
+
+public function opportunities()
+{
+    return $this->hasMany(RecruiterOpportunity::class);
+}
+
+public function reviewsReceived(): HasMany
+{
+    return $this->hasMany(MentorReview::class, 'mentor_id');
+}
+
     /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'mobile',
-        'password',
-        'role',
-        'api_token',
-        'company',
-        'current_role',
-        'target_roles',
-        'location',
-        'bio',
-    ];
+   protected $fillable = [
+    'name',
+    'last_name',
+
+    'email',
+    'mobile',
+    'password',
+
+    'role',
+    'api_token',
+
+    'company',
+    'current_role',
+    'target_roles',
+
+    'location',
+    'bio',
+
+    'profile_photo',
+
+    'experience',
+    'education',
+
+    'skills',
+
+    'linkedin',
+    'github',
+    'portfolio',
+
+    'looking_for',
+];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -60,10 +118,13 @@ class User extends Authenticatable
      * @return array<string, string>
      */
     protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+{
+    return [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+
+        'skills' => 'array',
+        'looking_for' => 'array',
+    ];
+}
 }

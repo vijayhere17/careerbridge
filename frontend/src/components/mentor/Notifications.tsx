@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   Bell,
   CalendarDays,
@@ -11,7 +12,7 @@ import {
 } from "lucide-react";
 
 interface Notification {
-  id: number;
+  id: string;
   title: string;
   message: string;
   type: "booking" | "payment" | "review" | "system";
@@ -19,46 +20,45 @@ interface Notification {
   read: boolean;
 }
 
-const notifications: Notification[] = [
-  {
-    id: 1,
-    title: "New Session Booked",
-    message: "Rahul Sharma booked a Mock Interview for tomorrow at 7:00 PM.",
-    type: "booking",
-    time: "5 min ago",
-    read: false,
-  },
-  {
-    id: 2,
-    title: "Payment Received",
-    message: "₹999 has been credited to your wallet.",
-    type: "payment",
-    time: "1 hour ago",
-    read: false,
-  },
-  {
-    id: 3,
-    title: "New Review",
-    message: "Priya Shah rated you 5★ after Resume Review.",
-    type: "review",
-    time: "Yesterday",
-    read: true,
-  },
-  {
-    id: 4,
-    title: "Platform Update",
-    message: "CareerBridge introduced Referral Mentorship services.",
-    type: "system",
-    time: "2 days ago",
-    read: true,
-  },
-];
+interface Summary {
+  total: number;
+  bookings: number;
+  payments: number;
+  unread: number;
+}
+
+
 
 export function MentorNotifications() {
 
-  const [items, setItems] = useState(notifications);
+  const [items, setItems] = useState<Notification[]>([]);
 
-  const unread = items.filter((item) => !item.read).length;
+const [summary, setSummary] = useState<Summary>({
+    total: 0,
+    bookings: 0,
+    payments: 0,
+    unread: 0,
+});
+
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+    loadNotifications();
+}, []);
+
+const loadNotifications = async () => {
+    try {
+        const response = await apiFetch("/mentor/notifications");
+
+        setItems(response.notifications);
+        setSummary(response.summary);
+
+    } catch (error) {
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+};
 
   const markAllRead = () => {
     setItems(items.map((item) => ({ ...item, read: true })));
@@ -79,6 +79,14 @@ export function MentorNotifications() {
         return <Bell className="h-5 w-5 text-violet-600" />;
     }
   };
+
+  if (loading) {
+    return (
+        <div className="flex h-64 items-center justify-center">
+            Loading notifications...
+        </div>
+    );
+}
 
   return (
 
@@ -136,7 +144,7 @@ export function MentorNotifications() {
           <Bell className="mb-4 h-10 w-10 rounded-xl bg-primary/10 p-2 text-primary" />
 
           <h2 className="text-2xl font-bold">
-            {items.length}
+            {summary.total}
           </h2>
 
           <p className="text-sm text-muted-foreground">
@@ -150,7 +158,7 @@ export function MentorNotifications() {
           <CalendarDays className="mb-4 h-10 w-10 rounded-xl bg-blue-50 p-2 text-blue-600" />
 
           <h2 className="text-2xl font-bold">
-            {items.filter(i => i.type === "booking").length}
+            {summary.bookings}
           </h2>
 
           <p className="text-sm text-muted-foreground">
@@ -164,7 +172,7 @@ export function MentorNotifications() {
           <Wallet className="mb-4 h-10 w-10 rounded-xl bg-green-50 p-2 text-green-600" />
 
           <h2 className="text-2xl font-bold">
-            {items.filter(i => i.type === "payment").length}
+            {summary.payments}
           </h2>
 
           <p className="text-sm text-muted-foreground">
@@ -178,7 +186,7 @@ export function MentorNotifications() {
           <CheckCircle2 className="mb-4 h-10 w-10 rounded-xl bg-orange-50 p-2 text-orange-600" />
 
           <h2 className="text-2xl font-bold">
-            {unread}
+            {summary.unread}
           </h2>
 
           <p className="text-sm text-muted-foreground">

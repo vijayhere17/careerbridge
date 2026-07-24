@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   Wallet, Plus, ArrowDownLeft, ArrowUpRight,
   Clock, CheckCircle2, XCircle, X, CreditCard,
@@ -22,7 +23,7 @@ interface Transaction {
   ref: string;
 }
 
-const MOCK_TXS: Transaction[] = [
+const DEMO_TXS: Transaction[] = [
   { id: "t1", type: "debit",  category: "session", title: "Session with Priya Sharma",      subtitle: "PM Mock Interview · 60 min",           amount: 1499, date: "2025-07-15", status: "success", ref: "CB2507150001" },
   { id: "t2", type: "credit", category: "refund",  title: "Refund – Anjali Menon",           subtitle: "Session cancelled by mentor",           amount: 1199, date: "2025-07-12", status: "success", ref: "CB2507120004" },
   { id: "t3", type: "credit", category: "deposit", title: "Wallet Top-up",                   subtitle: "UPI · vijay@okaxis",                    amount: 2000, date: "2025-07-10", status: "success", ref: "CB2507100003" },
@@ -249,8 +250,17 @@ function TopUpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (a
 }
 
 export function WalletPage() {
-  const [balance, setBalance] = useState(2235);
-  const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TXS);
+const [balance, setBalance] = useState(0);
+
+const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+const [summary, setSummary] = useState({
+  totalAdded: 0,
+  totalSpent: 0,
+  refunds: 0,
+});
+
+const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>("home");
   const [showTopUp, setShowTopUp] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
@@ -287,9 +297,54 @@ export function WalletPage() {
     return matchFilter && matchSearch;
   });
 
-  const totalSpent   = transactions.filter((t) => t.type === "debit"  && t.status === "success").reduce((s, t) => s + t.amount, 0);
-  const totalDeposit = transactions.filter((t) => t.type === "credit" && t.status === "success" && t.category === "deposit").reduce((s, t) => s + t.amount, 0);
-  const totalRefund  = transactions.filter((t) => t.category === "refund" && t.status === "success").reduce((s, t) => s + t.amount, 0);
+ const totalSpent = summary.totalSpent;
+
+const totalDeposit = summary.totalAdded;
+
+const totalRefund = summary.refunds;
+
+
+  useEffect(() => {
+  const loadWallet = async () => {
+    try {
+      const wallet = await apiFetch<any>("/api/wallet");
+
+      setBalance(wallet.balance);
+
+      setSummary(wallet.summary);
+
+      const tx = await apiFetch<any>("/api/wallet/transactions");
+
+      setTransactions(
+        tx.transactions.map((t: any) => ({
+          id: t.id.toString(),
+          type: t.type,
+          category: t.category,
+          title: t.title,
+          subtitle: t.subtitle,
+          amount: Number(t.amount),
+          date: t.created_at,
+          status: t.status,
+          ref: t.reference,
+        }))
+      );
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadWallet();
+}, []);
+
+if (loading) {
+  return (
+    <div className="flex justify-center py-20">
+      Loading Wallet...
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">

@@ -10,9 +10,138 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-
+use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\SavedOpportunityController;
+use App\Http\Controllers\Api\ApplicationController;
+use App\Http\Controllers\Api\ResumeController;
+use App\Http\Controllers\Api\MentorReviewController;
+use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\MentorIncomingRequestController;
+use App\Http\Controllers\Api\MentorUpcomingSessionController;
+use App\Http\Controllers\Api\MentorSessionHistoryController;
+use App\Http\Controllers\Api\MentorProfileSetupController;
+use App\Http\Controllers\Api\MentorProfileController;
+use App\Http\Controllers\Api\MentorServiceController;
+use App\Http\Controllers\Api\MentorEarningsController;
+use App\Http\Controllers\Api\MentorWithdrawController;
+use App\Http\Controllers\Api\MentorReviewsController;
+use App\Http\Controllers\Api\MentorNotificationController;
+use App\Http\Controllers\Api\MentorProfileSettingsController;
+use App\Http\Controllers\Api\Mentor\MentorSecurityController;
+use App\Http\Controllers\Api\Mentor\MentorDashboardController;
+
+
+Route::post(
+    '/mentor/change-password',
+    [MentorSecurityController::class, 'changePassword']
+);
+
+
+Route::get(
+    '/mentor/dashboard',
+    [MentorDashboardController::class, 'index']
+);
+
+
+    Route::get('/mentor/profile-settings', [MentorProfileSettingsController::class, 'show']);
+
+    Route::put('/mentor/profile-settings', [MentorProfileSettingsController::class, 'update']);
+
+
+Route::get('/mentor/notifications', [MentorNotificationController::class, 'index']);
+
+Route::middleware('auth:sanctum')->get(
+    '/mentor/reviews',
+    [MentorReviewsController::class, 'index']
+);
+
+Route::post('/mentor/withdraw', [MentorWithdrawController::class, 'store']);
+
+Route::get('/mentor/withdraw', [MentorWithdrawController::class, 'index']);
+
+Route::get('/mentor/earnings', [MentorEarningsController::class, 'index']);
+
+Route::get('mentor/services', [
+    MentorServiceController::class,
+    'index'
+]);
+
+Route::post('mentor/services', [
+    MentorServiceController::class,
+    'store'
+]);
+
+Route::put('mentor/services/{id}', [
+    MentorServiceController::class,
+    'update'
+]);
+
+Route::patch('mentor/services/{id}/toggle', [
+    MentorServiceController::class,
+    'toggle'
+]);
+
+Route::delete('mentor/services/{id}', [
+    MentorServiceController::class,
+    'destroy'
+]);
+
+Route::get('/mentor/profile', [MentorProfileController::class, 'show']);
+
+Route::post('/mentor/profile/setup', [MentorProfileSetupController::class, 'store']);
+
+Route::post(
+    'mentor/upcoming-sessions/{id}/complete',
+    [MentorUpcomingSessionController::class, 'complete']
+);
+
+Route::get(
+    '/mentor/session-history',
+    [MentorSessionHistoryController::class, 'index']
+);
+
+Route::get('/mentor/incoming-requests', [
+    MentorIncomingRequestController::class,
+    'index'
+]);
+
+Route::post('/mentor/incoming-requests/{booking}/accept', [
+    MentorIncomingRequestController::class,
+    'accept'
+]);
+
+Route::post('/mentor/incoming-requests/{booking}/reject', [
+    MentorIncomingRequestController::class,
+    'reject'
+]);
+
+Route::get(
+    '/mentor/upcoming-sessions',
+    [MentorUpcomingSessionController::class, 'index']
+);
+
+Route::get('/dashboard', [DashboardController::class, 'index']);
+
+Route::get('/profile', [ProfileController::class, 'show']);
+
+Route::post('/profile/update', [ProfileController::class, 'update']);
+
+Route::get('/reviews', [MentorReviewController::class, 'index']);
+
+Route::post('/reviews', [MentorReviewController::class, 'store']);
+
+Route::post('/upload-resume', [ResumeController::class, 'upload']);
+
+Route::post('/opportunities/apply', [ApplicationController::class, 'apply']);
+
+Route::get('/opportunities/applications', [ApplicationController::class, 'index']);
+
+Route::get('/wallet', [WalletController::class, 'index']);
+Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
+
+
 
 Route::get('/opportunities/saved', [SavedOpportunityController::class, 'index']);
 
@@ -88,7 +217,24 @@ Route::post('auth/login', function (Request $request) use ($userFields) {
         throw ValidationException::withMessages(['login' => ['The provided credentials are incorrect.']]);
     }
     $user->forceFill(['api_token' => Str::random(60)])->save();
-    return response()->json(['user' => $user->only($userFields), 'api_token' => $user->api_token]);
+   $mentorProfile = null;
+
+if ($user->role === 'mentor') {
+    $mentorProfile = $user->mentorProfile;
+}
+
+return response()->json([
+    'user' => $user->only($userFields),
+    'api_token' => $user->api_token,
+
+    'mentor_onboarding' => $user->role === 'mentor'
+        ? [
+            'has_profile' => (bool) $mentorProfile,
+            'status' => $mentorProfile?->onboarding_status ?? 'profile_setup',
+            'verified' => $mentorProfile?->verified ?? false,
+        ]
+        : null,
+]);
 });
 
 Route::post('auth/forgot-password', function (Request $request) use ($issueOtp) {
@@ -121,12 +267,35 @@ Route::post('auth/logout', function (Request $request) use ($resolveAuthenticate
     return response()->json(['message' => 'Logged out successfully.']);
 });
 
+
 Route::get('auth/user', function (Request $request) use ($resolveAuthenticatedUser, $userFields) {
     $user = $resolveAuthenticatedUser($request);
-    return $user
-        ? response()->json(['user' => $user->only($userFields)])
-        : response()->json(['message' => 'Unauthorized.'], 401);
+
+    if (!$user) {
+        return response()->json([
+            'message' => 'Unauthorized.'
+        ], 401);
+    }
+
+    $mentorProfile = null;
+
+    if ($user->role === 'mentor') {
+        $mentorProfile = $user->mentorProfile;
+    }
+
+    return response()->json([
+        'user' => $user->only($userFields),
+
+        'mentor_onboarding' => $user->role === 'mentor'
+            ? [
+                'has_profile' => (bool) $mentorProfile,
+                'status' => $mentorProfile?->onboarding_status ?? 'profile_setup',
+                'verified' => $mentorProfile?->verified ?? false,
+            ]
+            : null,
+    ]);
 });
+
 
 Route::put('auth/profile', function (Request $request) use ($resolveAuthenticatedUser, $userFields) {
     $user = $resolveAuthenticatedUser($request);

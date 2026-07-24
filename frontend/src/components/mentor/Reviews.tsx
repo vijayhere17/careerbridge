@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   Star,
@@ -8,53 +8,48 @@ import {
   Building2,
   TrendingUp,
 } from "lucide-react";
+import { apiFetch } from "@/lib/auth";
 
 interface Review {
-  id: number;
-  candidate: string;
-  company: string;
-  service: string;
-  rating: number;
-  review: string;
-  date: string;
+    id: string;
+    candidate: string;
+    candidate_photo: string | null;
+    company: string;
+    service: string;
+    rating: number;
+    comment: string;
+    date: string;
 }
 
-const reviews: Review[] = [
-  {
-    id: 1,
-    candidate: "Rahul Sharma",
-    company: "Google",
-    service: "Mock Interview",
-    rating: 5,
-    review:
-      "Amazing mentor. Helped me prepare for system design and Laravel interview. Cleared Google interview successfully.",
-    date: "21 Jun 2026",
-  },
-  {
-    id: 2,
-    candidate: "Priya Shah",
-    company: "Adobe",
-    service: "Resume Review",
-    rating: 5,
-    review:
-      "Very detailed feedback. Resume ATS score improved a lot.",
-    date: "18 Jun 2026",
-  },
-  {
-    id: 3,
-    candidate: "Amit Patel",
-    company: "Infosys",
-    service: "Career Guidance",
-    rating: 4,
-    review:
-      "Good guidance about career switch.",
-    date: "14 Jun 2026",
-  },
-];
+interface Summary {
+  average_rating: number;
+  total_reviews: number;
+  positive_percentage: number;
+  this_month: number;
+}
+
+interface Distribution {
+  star: number;
+  count: number;
+  percentage: number;
+}
 
 export function MentorReviews() {
 
   const [search, setSearch] = useState("");
+
+const [reviews, setReviews] = useState<Review[]>([]);
+
+const [summary, setSummary] = useState<Summary>({
+  average_rating: 0,
+  total_reviews: 0,
+  positive_percentage: 0,
+  this_month: 0,
+});
+
+const [distribution, setDistribution] = useState<Distribution[]>([]);
+
+const [loading, setLoading] = useState(true);
 
   const filteredReviews = useMemo(() => {
 
@@ -66,18 +61,45 @@ export function MentorReviews() {
 
   }, [search]);
 
-  const totalReviews = reviews.length;
 
-  const averageRating =
-    reviews.reduce((sum, item) => sum + item.rating, 0) /
-    reviews.length;
 
-  const positivePercentage =
-    Math.round(
-      (reviews.filter(r => r.rating >= 4).length /
-        reviews.length) *
-        100
-    );
+    useEffect(() => {
+  loadReviews();
+}, []);
+
+const loadReviews = async () => {
+  try {
+
+    const response = await apiFetch<{
+      summary: Summary;
+      distribution: Distribution[];
+      reviews: Review[];
+    }>("/api/mentor/reviews");
+
+    setSummary(response.summary);
+
+    setDistribution(response.distribution);
+
+    setReviews(response.reviews);
+
+  } catch (error) {
+
+    console.error(error);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+};
+
+if (loading) {
+  return (
+    <div className="flex h-64 items-center justify-center">
+      Loading reviews...
+    </div>
+  );
+}
 
   return (
 
@@ -107,26 +129,26 @@ export function MentorReviews() {
 
         {[
           {
-            title: "Average Rating",
-            value: averageRating.toFixed(1),
+  title: "Average Rating",
+  value: summary.average_rating.toFixed(1),
             icon: Star,
             color: "bg-yellow-50 text-yellow-600",
           },
           {
-            title: "Total Reviews",
-            value: totalReviews,
+  title: "Total Reviews",
+  value: summary.total_reviews,
             icon: MessageCircle,
             color: "bg-blue-50 text-blue-600",
           },
           {
-            title: "Positive",
-            value: `${positivePercentage}%`,
+  title: "Positive",
+  value: `${summary.positive_percentage}%`,
             icon: TrendingUp,
             color: "bg-green-50 text-green-600",
           },
           {
-            title: "This Month",
-            value: "26",
+  title: "This Month",
+  value: summary.this_month,
             icon: Calendar,
             color: "bg-violet-50 text-violet-600",
           },
@@ -216,8 +238,8 @@ export function MentorReviews() {
 
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-lg font-bold text-primary">
 
-                  {review.candidate
-                    .split(" ")
+                  {(review.candidate ?? "User")
+    .split(" ")
                     .map((n) => n[0])
                     .join("")}
 
@@ -276,7 +298,7 @@ export function MentorReviews() {
 
                   <p className="mt-4 max-w-3xl leading-7 text-muted-foreground">
 
-                    {review.review}
+                    {review.comment}
 
                   </p>
 
@@ -329,13 +351,7 @@ export function MentorReviews() {
             Overall candidate feedback
           </p>
 
-          {[
-            { star: 5, value: 85 },
-            { star: 4, value: 10 },
-            { star: 3, value: 3 },
-            { star: 2, value: 1 },
-            { star: 1, value: 1 },
-          ].map((item) => (
+          {distribution.map((item) => (
 
             <div
               key={item.star}
@@ -356,15 +372,15 @@ export function MentorReviews() {
 
                 <div
                   className="h-full rounded-full bg-yellow-400"
-                  style={{
-                    width: `${item.value}%`,
-                  }}
+                 style={{
+    width: `${item.percentage}%`,
+}}
                 />
 
               </div>
 
               <span className="w-10 text-right text-sm text-muted-foreground">
-                {item.value}%
+                {item.percentage}%
               </span>
 
             </div>

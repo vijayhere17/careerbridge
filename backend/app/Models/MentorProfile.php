@@ -6,26 +6,38 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MentorProfile extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'company',
-        'designation',
-        'industry',
-        'experience',
-        'location',
-        'bio',
-        'rating',
-        'review_count',
-        'session_count',
-        'verified',
-        'available',
-        'profile_photo',
-    ];
+    'user_id',
+
+    'company',
+    'designation',
+    'industry',
+    'experience',
+
+    'location',
+    'bio',
+
+    'linkedin_url',
+    'portfolio_url',
+    'resume',
+    'professional_summary',
+
+    'rating',
+    'review_count',
+    'session_count',
+
+    'verified',
+    'onboarding_status',
+    'available',
+
+    'profile_photo',
+];
 
     protected $casts = [
         'verified' => 'boolean',
@@ -48,6 +60,11 @@ class MentorProfile extends Model
     return $this->hasMany(MentorSkill::class, 'mentor_id');
 }
 
+public function availabilities(): HasMany
+{
+    return $this->hasMany(MentorAvailability::class, 'mentor_id');
+}
+
     public function languages(): HasMany
 {
     return $this->hasMany(MentorLanguage::class, 'mentor_id');
@@ -67,4 +84,9 @@ class MentorProfile extends Model
     {
         return $this->hasMany(SavedMentor::class, 'mentor_id');
     }
+
+    public function bankDetail(): HasOne
+{
+    return $this->hasOne(MentorBankDetail::class, 'mentor_id');
+}
 }

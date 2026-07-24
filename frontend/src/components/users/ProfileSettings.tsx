@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   User, Mail, Phone, MapPin, Briefcase, GraduationCap,
   Globe, Linkedin, Github, Camera, Save, Check,
@@ -7,21 +8,23 @@ import {
 } from "lucide-react";
 
 interface ProfileData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  location: string;
-  bio: string;
-  currentRole: string;
-  company: string;
-  experience: string;
-  education: string;
-  skills: string[];
-  linkedin: string;
-  github: string;
-  portfolio: string;
-  lookingFor: string[];
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    location: string;
+    bio: string;
+    currentRole: string;
+    company: string;
+    experience: string;
+    education: string;
+    skills: string[];
+    linkedin: string;
+    github: string;
+    portfolio: string;
+    lookingFor: string[];
+
+    profilePhoto?: string | null;
 }
 
 const EXPERIENCE_OPTIONS = ["0–1 year", "1–3 years", "3–6 years", "6–10 years", "10+ years"];
@@ -44,12 +47,21 @@ function SavedToast() {
   );
 }
 
-function SkillsInput({ skills, onChange }: { skills: string[]; onChange: (s: string[]) => void }) {
+function SkillsInput({
+  skills = [],
+  onChange,
+}: {
+  skills?: string[];
+  onChange: (s: string[]) => void;
+}) {
   const [input, setInput] = useState("");
 
   const add = () => {
     const val = input.trim();
-    if (val && !skills.includes(val) && skills.length < 20) {
+    const skillList = skills ?? [];
+
+if (val && !skillList.includes(val) && skillList.length < 20) {
+    onChange([...skillList, val]);
       onChange([...skills, val]);
       setInput("");
     }
@@ -74,10 +86,10 @@ function SkillsInput({ skills, onChange }: { skills: string[]; onChange: (s: str
         </button>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {skills.map((s) => (
+        {(skills ?? []).map((s) => (
           <span key={s} className="flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2.5 py-1 text-xs font-medium text-primary">
             {s}
-            <button type="button" onClick={() => onChange(skills.filter((x) => x !== s))} className="hover:text-red-500 transition-colors">
+            <button type="button" onClick={() => onChange((skills ?? []).filter((x) => x !== s))} className="hover:text-red-500 transition-colors">
               <X className="h-3 w-3" />
             </button>
           </span>
@@ -87,18 +99,31 @@ function SkillsInput({ skills, onChange }: { skills: string[]; onChange: (s: str
   );
 }
 
-function ProfileTab({ data, onChange, onSave }: {
-  data: ProfileData;
-  onChange: (d: Partial<ProfileData>) => void;
-  onSave: () => void;
+function ProfileTab({
+    data,
+    onChange,
+    onSave,
+    onPhotoChange,
+}: {
+    data: ProfileData;
+    onChange: (d: Partial<ProfileData>) => void;
+    onSave: () => void;
+    onPhotoChange: (file: File) => void;
 }) {
   const avatarRef = useRef<HTMLInputElement>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+const [avatarUrl, setAvatarUrl] = useState<string | null>(
+  data.profilePhoto || null
+);
 
   const handleAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setAvatarUrl(URL.createObjectURL(file));
-  };
+
+    if (!file) return;
+
+    setAvatarUrl(URL.createObjectURL(file));
+
+    onPhotoChange(file);
+};
 
   const Field = ({ label, value, k, type = "text", placeholder = "" }: {
     label: string; value: string; k: keyof ProfileData; type?: string; placeholder?: string;
@@ -120,10 +145,18 @@ function ProfileTab({ data, onChange, onSave }: {
       <div className="flex flex-col items-center gap-3">
         <div className="relative">
           <div className="grid h-20 w-20 place-items-center rounded-full bg-primary/10 overflow-hidden">
-            {avatarUrl
-              ? <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-              : <span className="text-2xl font-bold text-primary">{data.firstName[0]}{data.lastName[0]}</span>
-            }
+            {avatarUrl ? (
+  <img
+    src={avatarUrl}
+    alt="avatar"
+    className="h-full w-full object-cover"
+  />
+) : (
+  <span className="text-2xl font-bold text-primary">
+    {(data.firstName ?? "").charAt(0)}
+    {(data.lastName ?? "").charAt(0)}
+  </span>
+)}
           </div>
           <button
             onClick={() => avatarRef.current?.click()}
@@ -139,7 +172,7 @@ function ProfileTab({ data, onChange, onSave }: {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border p-4 space-y-4">
+      {/* <div className="rounded-xl border border-border p-4 space-y-4">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Basic Info</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="First Name"    value={data.firstName}   k="firstName"   placeholder="Vijay" />
@@ -161,9 +194,9 @@ function ProfileTab({ data, onChange, onSave }: {
           />
           <p className="text-[11px] text-muted-foreground mt-1 text-right">{data.bio.length}/300</p>
         </div>
-      </div>
+      </div> */}
 
-      <div className="rounded-xl border border-border p-4 space-y-4">
+      {/* <div className="rounded-xl border border-border p-4 space-y-4">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Professional</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field label="Current Role"  value={data.currentRole} k="currentRole" placeholder="Software Engineer" />
@@ -181,11 +214,14 @@ function ProfileTab({ data, onChange, onSave }: {
           </div>
           <Field label="Education"     value={data.education}   k="education"   placeholder="B.Tech, IIT Delhi" />
         </div>
-      </div>
+      </div> */}
 
       <div className="rounded-xl border border-border p-4 space-y-4">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Skills</p>
-        <SkillsInput skills={data.skills} onChange={(s) => onChange({ skills: s })} />
+        <SkillsInput
+    skills={data.skills ?? []}
+    onChange={(s) => onChange({ skills: s })}
+/>
       </div>
 
       <div className="rounded-xl border border-border p-4 space-y-4">
@@ -397,15 +433,15 @@ function PrivacyTab({ onSave }: { onSave: () => void }) {
     <div className="space-y-5">
       <div className="rounded-xl border border-border p-4 space-y-4">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Profile Visibility</p>
-        <Toggle k="profileVisible" label="Public Profile"       desc="Mentors and recruiters can view your profile" />
+        {/* <Toggle k="profileVisible" label="Public Profile"       desc="Mentors and recruiters can view your profile" />
         <Toggle k="searchable"     label="Appear in Search"     desc="Show up in mentor and recruiter searches" />
-        <Toggle k="activityVisible" label="Show Activity"       desc="Show your recent sessions and reviews" />
+        <Toggle k="activityVisible" label="Show Activity"       desc="Show your recent sessions and reviews" /> */}
       </div>
       <div className="rounded-xl border border-border p-4 space-y-4">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Contact Visibility</p>
-        <Toggle k="showEmail"    label="Show Email"    desc="Display email on your public profile" />
+        {/* <Toggle k="showEmail"    label="Show Email"    desc="Display email on your public profile" />
         <Toggle k="showPhone"    label="Show Phone"    desc="Display phone on your public profile" />
-        <Toggle k="showLinkedin" label="Show LinkedIn" desc="Display LinkedIn link on your profile" />
+        <Toggle k="showLinkedin" label="Show LinkedIn" desc="Display LinkedIn link on your profile" /> */}
       </div>
       <div className="rounded-xl border border-border bg-muted/40 p-4 space-y-2">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Data & Privacy</p>
@@ -437,27 +473,92 @@ export function ProfileSettings() {
   const [activeTab, setActiveTab] = useState<Tab>("profile");
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
-    firstName: "Vijay",
-    lastName: "Kumar",
-    email: "vijay@email.com",
-    phone: "+91 98765 43210",
-    location: "Bengaluru, India",
-    bio: "Passionate software engineer looking to grow in product and leadership roles.",
-    currentRole: "Software Engineer",
-    company: "TechCorp",
-    experience: "3–6 years",
-    education: "B.Tech, Computer Science",
-    skills: ["React", "Node.js", "TypeScript", "Python"],
-    linkedin: "",
-    github: "",
-    portfolio: "",
-    lookingFor: ["Full-time Job", "Mentorship"],
-  });
+    
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  location: "",
+  bio: "",
+  currentRole: "",
+  company: "",
+  experience: "",
+  education: "",
+  skills: [],
+  linkedin: "",
+  github: "",
+  portfolio: "",
+  lookingFor: [],
+});
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
+
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  const loadProfile = async () => {
+    try {
+      const data = await apiFetch<{ profile: ProfileData }>("/api/profile");
+
+      setProfile(data.profile);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  loadProfile();
+}, []);
+
+const handleSave = async () => {
+  try {
+    const formData = new FormData();
+
+formData.append("firstName", profile.firstName);
+formData.append("lastName", profile.lastName);
+formData.append("phone", profile.phone);
+formData.append("location", profile.location);
+formData.append("bio", profile.bio);
+formData.append("currentRole", profile.currentRole);
+formData.append("company", profile.company);
+formData.append("experience", profile.experience);
+formData.append("education", profile.education);
+formData.append("linkedin", profile.linkedin);
+formData.append("github", profile.github);
+formData.append("portfolio", profile.portfolio);
+
+formData.append("skills", JSON.stringify(profile.skills));
+formData.append("lookingFor", JSON.stringify(profile.lookingFor));
+
+if (profilePhoto) {
+    formData.append("profilePhoto", profilePhoto);
+}
+
+await apiFetch("/api/profile/update", {
+    method: "POST",
+    body: formData,
+});
+
+    setSaved(true);
+
+    setTimeout(() => {
+      setSaved(false);
+    }, 2000);
+
+  } catch (error) {
+    console.error(error);
+    alert("Failed to update profile.");
+  }
+};
+
+  if (loading) {
+  return (
+    <div className="flex justify-center py-20">
+      Loading profile...
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">
@@ -474,7 +575,12 @@ export function ProfileSettings() {
         ))}
       </div>
 
-      {activeTab === "profile"       && <ProfileTab       data={profile} onChange={(d) => setProfile((p) => ({ ...p, ...d }))} onSave={handleSave} />}
+      {activeTab === "profile"       && <ProfileTab
+    data={profile}
+    onChange={(d) => setProfile((p) => ({ ...p, ...d }))}
+    onSave={handleSave}
+    onPhotoChange={setProfilePhoto}
+/>}
       {activeTab === "account"       && <AccountTab       onSave={handleSave} />}
       {activeTab === "notifications" && <NotificationsTab onSave={handleSave} />}
       {activeTab === "privacy"       && <PrivacyTab       onSave={handleSave} />}

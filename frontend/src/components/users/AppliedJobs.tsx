@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   Briefcase, MapPin, Clock, Search, X,
   CheckCircle2, XCircle, AlertCircle, Eye,
@@ -366,7 +367,8 @@ function JobCard({ job, onView }: { job: AppliedJob; onView: () => void }) {
 }
 
 export function AppliedJobs() {
-  const [jobs] = useState<AppliedJob[]>(MOCK_JOBS);
+const [jobs, setJobs] = useState<AppliedJob[]>([]);
+const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AppStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<AppliedJob | null>(null);
@@ -395,6 +397,71 @@ export function AppliedJobs() {
     { label: "Interviews",    value: jobs.filter((j) => j.status === "Interview Scheduled").length },
     { label: "Offers",        value: jobs.filter((j) => ["Offer Received", "Selected"].includes(j.status)).length },
   ];
+
+  useEffect(() => {
+  const loadApplications = async () => {
+    try {
+      const data = await apiFetch<{ applications: any[] }>(
+        "/api/opportunities/applications"
+      );
+
+      setJobs(
+  data.applications
+    .filter((app) => app.jobType === "Full Time")
+    .map((app) => ({
+    id: app.id,
+
+    company: app.company,
+
+    initials:
+      app.companyLogo ||
+      app.company
+        ?.split(" ")
+        .map((x: string) => x[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase(),
+
+    role: app.title,
+
+    location: app.location,
+
+    salary: app.salary,
+
+    workType: app.workType,
+
+    appliedDate: app.appliedAt,
+
+    lastUpdate: app.lastUpdate,
+
+    status: app.status,
+
+    jobType: app.jobType,
+
+    interviewDate: app.interviewDate,
+
+    offerAmount: app.offerAmount,
+
+    rejectionReason: app.rejectionReason,
+  }))
+);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadApplications();
+}, []);
+
+if (loading) {
+  return (
+    <div className="flex justify-center py-20">
+      Loading applications...
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">

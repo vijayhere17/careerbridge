@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   Wallet,
   Landmark,
@@ -17,32 +18,7 @@ interface WithdrawHistory {
   status: "Pending" | "Approved" | "Rejected";
 }
 
-const history: WithdrawHistory[] = [
-  {
-    id: 1,
-    amount: 5000,
-    bank: "HDFC Bank",
-    account: "XXXX4321",
-    date: "20 Jun 2026",
-    status: "Approved",
-  },
-  {
-    id: 2,
-    amount: 3000,
-    bank: "ICICI Bank",
-    account: "XXXX1245",
-    date: "24 Jun 2026",
-    status: "Pending",
-  },
-  {
-    id: 3,
-    amount: 2500,
-    bank: "SBI",
-    account: "XXXX8765",
-    date: "27 Jun 2026",
-    status: "Rejected",
-  },
-];
+
 
 export function MentorWithdrawRequest() {
 
@@ -52,11 +28,158 @@ export function MentorWithdrawRequest() {
 
   const [remarks, setRemarks] = useState("");
 
-  const availableBalance = 18400;
+  interface WithdrawSummary {
+  available_balance: number;
+  pending_withdraw: number;
+  total_withdrawn: number;
+}
 
-  const pendingWithdraw = 3000;
+interface WithdrawResponse {
+  summary: WithdrawSummary;
+  history: WithdrawHistory[];
+}
 
-  const totalWithdrawn = 86500;
+const [summary, setSummary] = useState<WithdrawSummary>({
+  available_balance: 0,
+  pending_withdraw: 0,
+  total_withdrawn: 0,
+});
+
+const [history, setHistory] = useState<WithdrawHistory[]>([]);
+
+const [loading, setLoading] = useState(true);
+
+const [submitting, setSubmitting] = useState(false);
+
+const [successMessage, setSuccessMessage] = useState("");
+const [errorMessage, setErrorMessage] = useState("");
+
+const [selectedWithdraw, setSelectedWithdraw] =
+  useState<WithdrawHistory | null>(null);
+
+const [showDetails, setShowDetails] = useState(false);
+
+
+useEffect(() => {
+
+  async function loadData() {
+
+    try {
+
+      const response = await apiFetch<WithdrawResponse>(
+        "/api/mentor/withdraw"
+      );
+
+      setSummary(response.summary);
+
+      setHistory(response.history);
+
+    } catch (error) {
+
+      console.error("Load withdraw data failed:", error);
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+
+  loadData();
+
+}, []);
+
+
+if (loading) {
+
+  return (
+    <div className="py-20 text-center">
+      Loading...
+    </div>
+  );
+
+}
+
+const handleSubmit = async () => {
+
+  if (!amount) {
+
+  setErrorMessage("Please enter withdrawal amount.");
+  setSuccessMessage("");
+  return;
+
+}
+
+if (Number(amount) < 500) {
+
+  setErrorMessage("Minimum withdrawal amount is ₹500.");
+  setSuccessMessage("");
+  return;
+
+}
+
+if (Number(amount) > summary.available_balance) {
+
+  setErrorMessage("Withdrawal amount exceeds available balance.");
+  setSuccessMessage("");
+  return;
+
+}
+
+setErrorMessage("");
+
+  try {
+
+    setSubmitting(true);
+
+    await apiFetch("/api/mentor/withdraw", {
+
+      method: "POST",
+
+      body: JSON.stringify({
+
+        amount: Number(amount),
+
+        bank_name: bank.split("•")[0].trim(),
+
+        account_number: bank.split("•")[1]?.trim() ?? "",
+
+        remarks,
+
+      }),
+
+    });
+
+   setSuccessMessage("Withdrawal request submitted successfully.");
+setErrorMessage("");
+
+    setAmount("");
+
+setRemarks("");
+
+setBank("HDFC Bank");
+
+    // Reload latest summary and history
+    const response = await apiFetch<WithdrawResponse>(
+      "/api/mentor/withdraw"
+    );
+
+    setSummary(response.summary);
+
+    setHistory(response.history);
+
+  } catch (error: any) {
+
+setSuccessMessage("");
+setErrorMessage(error?.message ?? "Something went wrong.");
+  } finally {
+
+    setSubmitting(false);
+
+  }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+};
 
   return (
 
@@ -86,25 +209,25 @@ export function MentorWithdrawRequest() {
 
         {[
           {
-            title: "Available Balance",
-            value: `₹${availableBalance.toLocaleString()}`,
-            icon: Wallet,
-            color: "bg-green-50 text-green-600",
-          },
+  title: "Available Balance",
+  value: `₹${summary.available_balance.toLocaleString("en-IN")}`,
+  icon: Wallet,
+  color: "bg-green-50 text-green-600",
+},
 
           {
-            title: "Pending Withdraw",
-            value: `₹${pendingWithdraw.toLocaleString()}`,
-            icon: Clock3,
-            color: "bg-orange-50 text-orange-600",
-          },
+  title: "Pending Withdraw",
+  value: `₹${summary.pending_withdraw.toLocaleString("en-IN")}`,
+  icon: Clock3,
+  color: "bg-orange-50 text-orange-600",
+},
 
           {
-            title: "Total Withdrawn",
-            value: `₹${totalWithdrawn.toLocaleString()}`,
-            icon: IndianRupee,
-            color: "bg-blue-50 text-blue-600",
-          },
+  title: "Total Withdrawn",
+  value: `₹${summary.total_withdrawn.toLocaleString("en-IN")}`,
+  icon: IndianRupee,
+  color: "bg-blue-50 text-blue-600",
+},
 
         ].map((card) => {
 
@@ -140,6 +263,18 @@ export function MentorWithdrawRequest() {
         })}
 
       </div>
+
+      {successMessage && (
+  <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+    {successMessage}
+  </div>
+)}
+
+{errorMessage && (
+  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+    {errorMessage}
+  </div>
+)}
 
             {/* Withdraw Form */}
 
@@ -225,12 +360,14 @@ export function MentorWithdrawRequest() {
           {/* Submit */}
 
           <button
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition hover:bg-primary/90"
-          >
+  onClick={handleSubmit}
+  disabled={submitting}
+  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+>
 
             <Wallet className="h-5 w-5" />
 
-            Submit Withdraw Request
+           {submitting ? "Submitting..." : "Submit Withdraw Request"}
 
           </button>
 
@@ -372,68 +509,85 @@ export function MentorWithdrawRequest() {
 
             </thead>
 
-            <tbody>
+           <tbody>
 
-              {history.map((item) => (
+  {history.length > 0 ? (
 
-                <tr
-                  key={item.id}
-                  className="border-t border-border hover:bg-muted/30"
-                >
+    history.map((item) => (
 
-                  <td className="px-6 py-5 font-semibold">
-                    ₹{item.amount.toLocaleString()}
-                  </td>
+      <tr
+        key={item.id}
+        className="border-t border-border hover:bg-muted/30"
+      >
 
-                  <td className="px-6 py-5">
-                    {item.bank}
-                  </td>
+        <td className="px-6 py-5 font-semibold">
+          ₹{Number(item.amount).toLocaleString("en-IN")}
+        </td>
 
-                  <td className="px-6 py-5">
-                    {item.account}
-                  </td>
+        <td className="px-6 py-5">
+          {item.bank}
+        </td>
 
-                  <td className="px-6 py-5">
-                    {item.date}
-                  </td>
+        <td className="px-6 py-5">
+          {item.account}
+        </td>
 
-                  <td className="px-6 py-5">
+        <td className="px-6 py-5">
+          {item.date}
+        </td>
 
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        item.status === "Approved"
-                          ? "bg-green-50 text-green-700"
+        <td className="px-6 py-5">
 
-                          : item.status === "Pending"
-                          ? "bg-orange-50 text-orange-700"
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              item.status === "Approved"
+                ? "bg-green-50 text-green-700"
+                : item.status === "Pending"
+                ? "bg-orange-50 text-orange-700"
+                : "bg-red-50 text-red-700"
+            }`}
+          >
 
-                          : "bg-red-50 text-red-700"
-                      }`}
-                    >
+            {item.status}
 
-                      {item.status}
+          </span>
 
-                    </span>
+        </td>
 
-                  </td>
+        <td className="px-6 py-5 text-right">
 
-                  <td className="px-6 py-5 text-right">
+          <button
+  onClick={() => {
+    setSelectedWithdraw(item);
+    setShowDetails(true);
+  }}
+  className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
+>
+  View
+</button>
 
-                    <button
-                      className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition hover:bg-muted"
-                    >
+        </td>
 
-                      View
+      </tr>
 
-                    </button>
+    ))
 
-                  </td>
+  ) : (
 
-                </tr>
+    <tr>
 
-              ))}
+      <td
+        colSpan={6}
+        className="px-6 py-10 text-center text-sm text-muted-foreground"
+      >
+        No withdrawal requests found.
+      </td>
 
-            </tbody>
+    </tr>
+
+  )}
+
+</tbody>
 
           </table>
 

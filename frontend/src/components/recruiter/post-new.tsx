@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { recruiterOpportunityService } from "@/services/recruiterOpportunityService";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -66,12 +69,38 @@ const steps = ["Opportunity Type", "Basic Information", "Details", "Preview & Pu
 
 export function PostNewOpportunity() {
   const [step, setStep] = useState(0);
-  const [type, setType] = useState<string>("job");
-  const [mode, setMode] = useState<"Remote" | "Hybrid" | "Office">("Hybrid");
-  const [visibility, setVisibility] = useState<"public" | "locked">("locked");
+  const [form, setForm] = useState({
+  opportunity_type: "job",
+  title: "",
+  company_name: "",
+  location: "",
+  employment_type: "",
+  experience_level: "",
+  salary_min: "",
+  salary_max: "",
+  application_deadline: "",
+  skills: "",
+  description: "",
+  responsibilities: "",
+  requirements: "",
+  benefits: "",
+  work_mode: "Hybrid",
+  contact_visibility: "locked",
+});
+
+const [loading, setLoading] = useState(false);
+const [errors, setErrors] = useState<any>({});
+  const navigate = useNavigate();
 
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const handleChange = (field: string, value: any) => {
+  setForm((prev) => ({
+    ...prev,
+    [field]: value,
+  }));
+};
 
   return (
     <RecruiterLayout
@@ -127,8 +156,8 @@ export function PostNewOpportunity() {
                   return (
                     <button
                       key={t.id}
-                      onClick={() => setType(t.id)}
-                      className={`text-left rounded-2xl border p-3 sm:p-4 transition-shadow hover:shadow-card ${type === t.id ? "border-primary ring-2 ring-primary/20 bg-primary-soft/30" : "border-border bg-card"}`}
+                      onClick={() => handleChange("opportunity_type", t.id)}
+                      className={`text-left rounded-2xl border p-3 sm:p-4 transition-shadow hover:shadow-card ${form.opportunity_type === t.id ? "border-primary ring-2 ring-primary/20 bg-primary-soft/30" : "border-border bg-card"}`}
                     >
                       <div className="flex items-start gap-3">
                         <span
@@ -140,7 +169,7 @@ export function PostNewOpportunity() {
                           <p className="font-semibold">{t.label}</p>
                           <p className="text-xs text-muted-foreground">{t.desc}</p>
                         </div>
-                        {type === t.id && <Check className="h-5 w-5 text-primary" />}
+                        {form.opportunity_type === t.id && <Check className="h-5 w-5 text-primary" />}
                       </div>
                     </button>
                   );
@@ -155,19 +184,36 @@ export function PostNewOpportunity() {
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2 space-y-2">
                   <Label htmlFor="title">Title</Label>
-                  <Input id="title" placeholder="e.g. Senior React Engineer" />
+                  <Input
+id="title"
+value={form.title}
+onChange={(e)=>handleChange("title",e.target.value)}
+placeholder="e.g. Senior React Engineer"
+/>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company">Company</Label>
-                  <Input id="company" defaultValue="Exotic Infotech Pvt Ltd" />
+                 <Input
+id="company"
+value={form.company_name}
+onChange={(e)=>handleChange("company_name",e.target.value)}
+/>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="location">Location</Label>
-                  <Input id="location" placeholder="City, Country" />
+                  <Input
+                    id="location"
+                    value={form.location}
+                    onChange={(e) => handleChange("location", e.target.value)}
+                    placeholder="City, Country"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Employment Type</Label>
-                  <Select defaultValue="full-time">
+                  <Select
+value={form.employment_type}
+onValueChange={(value)=>handleChange("employment_type",value)}
+>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -181,7 +227,10 @@ export function PostNewOpportunity() {
                 </div>
                 <div className="space-y-2">
                   <Label>Experience</Label>
-                  <Select defaultValue="mid">
+                  <Select
+value={form.experience_level}
+onValueChange={(value)=>handleChange("experience_level",value)}
+>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -200,11 +249,20 @@ export function PostNewOpportunity() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="deadline">Application Deadline</Label>
-                  <Input id="deadline" type="date" />
+                 <Input
+id="deadline"
+type="date"
+value={form.application_deadline}
+onChange={(e)=>handleChange("application_deadline",e.target.value)}
+/>
                 </div>
                 <div className="sm:col-span-2 space-y-2">
                   <Label htmlFor="skills">Skills (comma separated)</Label>
-                  <Input id="skills" placeholder="React, TypeScript, Node.js" />
+                  <Input
+id="skills"
+value={form.skills}
+onChange={(e)=>handleChange("skills",e.target.value)}
+/>
                 </div>
               </div>
             </div>
@@ -221,15 +279,24 @@ export function PostNewOpportunity() {
                   </div>
                   <div className="space-y-2">
                     <Label>Responsibilities</Label>
-                    <Textarea rows={3} placeholder="• Own frontend architecture..." />
+                    <Textarea
+value={form.responsibilities}
+onChange={(e)=>handleChange("responsibilities",e.target.value)}
+/>
                   </div>
                   <div className="space-y-2">
                     <Label>Requirements</Label>
-                    <Textarea rows={3} placeholder="• 5+ years React..." />
+                   <Textarea
+value={form.requirements}
+onChange={(e)=>handleChange("requirements",e.target.value)}
+/>
                   </div>
                   <div className="space-y-2">
                     <Label>Benefits</Label>
-                    <Textarea rows={3} placeholder="• Health insurance..." />
+                    <Textarea
+value={form.benefits}
+onChange={(e)=>handleChange("benefits",e.target.value)}
+/>
                   </div>
                 </div>
               </div>
@@ -246,8 +313,8 @@ export function PostNewOpportunity() {
                     return (
                       <button
                         key={m.id}
-                        onClick={() => setMode(m.id as any)}
-                        className={`rounded-xl border p-3 sm:p-4 text-sm font-medium transition-shadow hover:shadow-card ${mode === m.id ? "border-primary bg-primary-soft/40 text-primary" : "border-border"}`}
+                        onClick={() => handleChange("work_mode", m.id)}
+                        className={`rounded-xl border p-3 sm:p-4 text-sm font-medium transition-shadow hover:shadow-card ${form.work_mode === m.id ? "border-primary bg-primary-soft/40 text-primary" : "border-border"}`}
                       >
                         <Icon className="mx-auto mb-2 h-4 w-4 sm:h-5 sm:w-5" />
                         {m.id}
@@ -261,7 +328,7 @@ export function PostNewOpportunity() {
                 <h3 className="font-semibold">Contact visibility</h3>
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
-                    onClick={() => setVisibility("public")}
+                    onClick={() => handleChange("contact_visibility","public")}
                     className={`text-left rounded-xl border p-4 ${visibility === "public" ? "border-primary bg-primary-soft/40" : "border-border"}`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
@@ -272,7 +339,7 @@ export function PostNewOpportunity() {
                     </p>
                   </button>
                   <button
-                    onClick={() => setVisibility("locked")}
+                    onClick={() => handleChange("contact_visibility","locked")}
                     className={`text-left rounded-xl border p-4 ${visibility === "locked" ? "border-primary bg-primary-soft/40" : "border-border"}`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
@@ -294,7 +361,7 @@ export function PostNewOpportunity() {
                   <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary uppercase">
                     {type}
                   </span>
-                  <h3 className="mt-2 font-display text-2xl font-bold">Senior React Engineer</h3>
+                  <h3 className="mt-2 font-display text-2xl font-bold">{form.title || "Opportunity Title"}</h3>
                   <p className="text-sm text-muted-foreground">
                     Exotic Infotech Pvt Ltd · Pune, IN · {mode}
                   </p>

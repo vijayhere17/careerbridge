@@ -6,6 +6,7 @@ use App\Models\Mentor;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
@@ -22,6 +23,17 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        User::updateOrCreate(
+            ['email' => 'hr@gmail.com'],
+            [
+                'name' => 'HR Test',
+                'mobile' => '9999999999',
+                'password' => Hash::make('12345678'),
+                'role' => 'opportunity_provider',
+                'email_verified_at' => now(),
+            ]
+        );
 
         Mentor::truncate();
 

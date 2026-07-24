@@ -1,10 +1,11 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Video, Phone, MessageCircle, Clock, Calendar,
   CheckCircle2, X, ChevronRight, ExternalLink,
   User, AlertCircle, DollarSign, Copy, Check,
 } from "lucide-react";
+import { apiFetch } from "@/lib/auth";
 
 type SessionType = "Video Call" | "Audio Call" | "Chat";
 
@@ -305,8 +306,27 @@ function SessionCard({ session, onView }: {
 }
 
 export function MentorUpcomingSessions() {
-  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
+  const [sessions, setSessions] = useState<Session[]>([]);
+const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Session | null>(null);
+
+  useEffect(() => {
+  async function loadSessions() {
+    try {
+      const data = await apiFetch<{
+        sessions: Session[];
+      }>("/api/mentor/upcoming-sessions");
+
+      setSessions(data.sessions);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadSessions();
+}, []);
 
   const handleComplete = (id: string) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -331,7 +351,13 @@ export function MentorUpcomingSessions() {
         ))}
       </div>
 
-      {sessions.length === 0 ? (
+      {loading ? (
+  <div className="flex flex-col items-center justify-center py-16 text-center">
+    <p className="text-sm text-muted-foreground">
+      Loading upcoming sessions...
+    </p>
+  </div>
+) : sessions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted mb-3">
             <Calendar className="h-7 w-7 text-muted-foreground" />

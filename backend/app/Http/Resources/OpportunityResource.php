@@ -31,6 +31,10 @@ class OpportunityResource extends JsonResource
 
             'employmentType' => $this->employment_type,
 
+'duration' => $this->duration,
+
+'ppoChance' => (bool) $this->ppo_chance,
+
             'description' => $this->description,
 
             'provider' => [

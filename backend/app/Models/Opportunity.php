@@ -24,8 +24,10 @@ class Opportunity extends Model
         'work_type',
         'experience',
         'salary',
-        'employment_type',
-        'description',
+       'employment_type',
+'duration',
+'ppo_chance',
+'description',
         'interview_process',
         'provider_name',
         'provider_type',
@@ -42,11 +44,12 @@ class Opportunity extends Model
     ];
 
     protected $casts = [
-        'verified' => 'boolean',
-        'featured' => 'boolean',
-        'active' => 'boolean',
-        'provider_verified' => 'boolean',
-    ];
+    'verified' => 'boolean',
+    'featured' => 'boolean',
+    'active' => 'boolean',
+    'provider_verified' => 'boolean',
+    'ppo_chance' => 'boolean',
+];
 
     public function user(): BelongsTo
     {
@@ -66,5 +69,10 @@ class Opportunity extends Model
     public function savedBy(): HasMany
 {
     return $this->hasMany(SavedOpportunity::class);
+}
+
+public function applications(): HasMany
+{
+    return $this->hasMany(JobApplication::class);
 }
 }

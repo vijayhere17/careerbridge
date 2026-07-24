@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/auth";
 import {
   Plus, Edit2, Trash2, Video, Phone, MessageCircle,
   Clock, DollarSign, CheckCircle2, X, Save, Eye, EyeOff,
@@ -16,6 +17,18 @@ interface Service {
   price: number;
   active: boolean;
   bookings: number;
+}
+
+interface ApiService {
+  id: number | string;
+  title: string;
+  description: string | null;
+  price: number | string;
+  duration: number | string;
+  session_type: string;
+  status: string;
+  bookings?: number;
+  bookings_count?: number;
 }
 
 const INITIAL_SERVICES: Service[] = [
@@ -75,6 +88,33 @@ const TYPE_ICONS: Record<SessionType, React.ElementType> = {
   "Chat":       MessageCircle,
 };
 
+const normalizeService = (service: ApiService): Service => {
+  const allowedTypes: SessionType[] = [
+    "Video Call",
+    "Audio Call",
+    "Chat",
+  ];
+
+  const type: SessionType = allowedTypes.includes(
+    service.session_type as SessionType
+  )
+    ? (service.session_type as SessionType)
+    : "Video Call";
+
+  return {
+    id: String(service.id),
+    title: service.title ?? "",
+    description: service.description ?? "",
+    type,
+    duration: Number(service.duration ?? 0),
+    price: Number(service.price ?? 0),
+    active: service.status === "active",
+    bookings: Number(
+      service.bookings_count ?? service.bookings ?? 0
+    ),
+  };
+};
+
 const emptyService = (): Omit<Service, "id" | "bookings"> => ({
   title: "",
   description: "",
@@ -90,7 +130,9 @@ function ServiceForm({
   onCancel,
 }: {
   initial: Omit<Service, "id" | "bookings">;
-  onSave: (s: Omit<Service, "id" | "bookings">) => void;
+  onSave: (
+  s: Omit<Service, "id" | "bookings">
+) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const [form, setForm] = useState(initial);
@@ -230,7 +272,11 @@ function ServiceForm({
   );
 }
 
-function DeleteDialog({ service, onConfirm, onCancel }: {
+function DeleteDialog({
+  service,
+  onConfirm,
+  onCancel,
+}: {
   service: Service;
   onConfirm: () => void;
   onCancel: () => void;
@@ -242,19 +288,38 @@ function DeleteDialog({ service, onConfirm, onCancel }: {
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-red-50">
             <Trash2 className="h-5 w-5 text-red-500" />
           </div>
-          <div>
-            <p className="font-bold text-sm">Delete service?</p>
-            <p className="text-xs text-muted-foreground truncate">{service.title}</p>
+
+          <div className="min-w-0">
+            <p className="font-bold text-sm">
+              Delete service?
+            </p>
+
+            <p className="text-xs text-muted-foreground truncate">
+              {service.title}
+            </p>
           </div>
         </div>
+
         <p className="text-sm text-muted-foreground mb-4">
-          This service has <span className="font-semibold">{service.bookings} past bookings</span>. Deleting it will not affect completed sessions.
+          This service has{" "}
+          <span className="font-semibold">
+            {Number(service.bookings ?? 0)} past bookings
+          </span>
+          . Deleting it will not affect completed sessions.
         </p>
+
         <div className="flex gap-2">
-          <button onClick={onCancel} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted transition-colors">
+          <button
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted transition-colors"
+          >
             Cancel
           </button>
-          <button onClick={onConfirm} className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors">
+
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-semibold text-white hover:bg-red-600 transition-colors"
+          >
             Delete
           </button>
         </div>
@@ -274,10 +339,16 @@ function ServiceCard({
   onDelete: () => void;
   onToggle: () => void;
 }) {
-  const Icon = TYPE_ICONS[service.type];
+  const Icon = TYPE_ICONS[service.type] ?? Video;
 
   return (
-    <div className={`rounded-xl border bg-surface p-4 transition-all ${service.active ? "border-border" : "border-border opacity-60"}`}>
+    <div
+      className={`rounded-xl border bg-surface p-4 transition-all ${
+        service.active
+          ? "border-border"
+          : "border-border opacity-60"
+      }`}
+    >
       <div className="flex items-start gap-3">
         <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10">
           <Icon className="h-5 w-5 text-primary" />
@@ -287,31 +358,46 @@ function ServiceCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-sm">{service.title}</p>
-                <span className={`rounded-md px-2 py-0.5 text-[10px] font-semibold border ${
-                  service.active
-                    ? "bg-primary/10 text-primary border-primary/20"
-                    : "bg-muted text-muted-foreground border-border"
-                }`}>
+                <p className="font-semibold text-sm">
+                  {service.title}
+                </p>
+
+                <span
+                  className={`rounded-md px-2 py-0.5 text-[10px] font-semibold border ${
+                    service.active
+                      ? "bg-primary/10 text-primary border-primary/20"
+                      : "bg-muted text-muted-foreground border-border"
+                  }`}
+                >
                   {service.active ? "Active" : "Inactive"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">{service.description}</p>
+
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
+                {service.description}
+              </p>
             </div>
           </div>
 
           <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" /> {service.duration} min
+              <Clock className="h-3 w-3" />
+              {Number(service.duration ?? 0)} min
             </span>
+
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Icon className="h-3 w-3" /> {service.type}
+              <Icon className="h-3 w-3" />
+              {service.type}
             </span>
+
             <span className="flex items-center gap-1 text-xs font-bold text-primary">
-              <DollarSign className="h-3 w-3" /> ₹{service.price.toLocaleString()}
+              <span className="text-xs font-bold">₹</span>
+{Number(service.price ?? 0).toLocaleString("en-IN")}
             </span>
+
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-3 w-3" /> {service.bookings} bookings
+              <CheckCircle2 className="h-3 w-3" />
+              {Number(service.bookings ?? 0)} bookings
             </span>
           </div>
 
@@ -320,21 +406,33 @@ function ServiceCard({
               onClick={onToggle}
               className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold hover:bg-muted transition-colors"
             >
-              {service.active
-                ? <><EyeOff className="h-3 w-3" /> Deactivate</>
-                : <><Eye className="h-3 w-3" /> Activate</>}
+              {service.active ? (
+                <>
+                  <EyeOff className="h-3 w-3" />
+                  Deactivate
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3 w-3" />
+                  Activate
+                </>
+              )}
             </button>
+
             <button
               onClick={onEdit}
               className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold hover:bg-muted transition-colors"
             >
-              <Edit2 className="h-3 w-3" /> Edit
+              <Edit2 className="h-3 w-3" />
+              Edit
             </button>
+
             <button
               onClick={onDelete}
               className="flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-[11px] font-semibold text-red-500 hover:bg-red-50 transition-colors ml-auto"
             >
-              <Trash2 className="h-3 w-3" /> Delete
+              <Trash2 className="h-3 w-3" />
+              Delete
             </button>
           </div>
         </div>
@@ -344,36 +442,173 @@ function ServiceCard({
 }
 
 export function MentorServices() {
-  const [services, setServices] = useState<Service[]>(INITIAL_SERVICES);
+  const [services, setServices] = useState<Service[]>([]);
+const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<Service | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Service | null>(null);
 
-  const activeCount   = services.filter((s) => s.active).length;
-  const totalBookings = services.reduce((sum, s) => sum + s.bookings, 0);
-  const minPrice      = services.length ? Math.min(...services.map((s) => s.price)) : 0;
-  const maxPrice      = services.length ? Math.max(...services.map((s) => s.price)) : 0;
+const activeCount = services.filter((s) => s.active).length;
 
-  const handleAdd = (data: Omit<Service, "id" | "bookings">) => {
-    setServices((prev) => [...prev, { ...data, id: `s${Date.now()}`, bookings: 0 }]);
+const totalBookings = services.reduce(
+  (sum, service) => sum + Number(service.bookings ?? 0),
+  0
+);
+
+const prices = services.map((service) =>
+  Number(service.price ?? 0)
+);
+
+const minPrice = prices.length
+  ? Math.min(...prices)
+  : 0;
+
+const maxPrice = prices.length
+  ? Math.max(...prices)
+  : 0;
+
+const priceRange = !prices.length
+  ? "—"
+  : minPrice === maxPrice
+  ? `₹${minPrice.toLocaleString("en-IN")}`
+  : `₹${minPrice.toLocaleString("en-IN")}–₹${maxPrice.toLocaleString("en-IN")}`;
+
+  const handleAdd = async (
+  data: Omit<Service, "id" | "bookings">
+) => {
+  try {
+    const response = await apiFetch<{
+      success: boolean;
+      message: string;
+      service: ApiService;
+    }>("/api/mentor/services", {
+      method: "POST",
+      body: JSON.stringify({
+        title: data.title,
+        description: data.description,
+        price: Number(data.price),
+        duration: Number(data.duration),
+        session_type: data.type,
+        status: data.active ? "active" : "inactive",
+      }),
+    });
+
+    const newService = normalizeService(response.service);
+
+    setServices((prev) => [
+      newService,
+      ...prev,
+    ]);
+
     setShowForm(false);
-  };
+  } catch (error) {
+    console.error("Add mentor service error:", error);
+  }
+};
 
-  const handleEdit = (data: Omit<Service, "id" | "bookings">) => {
-    if (!editTarget) return;
-    setServices((prev) => prev.map((s) => s.id === editTarget.id ? { ...s, ...data } : s));
+  const handleEdit = async (
+  data: Omit<Service, "id" | "bookings">
+) => {
+  if (!editTarget) return;
+
+  try {
+    const response = await apiFetch<{
+      success: boolean;
+      message: string;
+      service: ApiService;
+    }>(`/api/mentor/services/${editTarget.id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+
+    setServices((prev) =>
+      prev.map((service) =>
+        service.id === editTarget.id
+  ? normalizeService(response.service)
+  : service
+      )
+    );
+
     setEditTarget(null);
-  };
+  } catch (error) {
+    console.error("Update mentor service error:", error);
+  }
+};
 
-  const handleDelete = () => {
-    if (!deleteTarget) return;
-    setServices((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+  const handleDelete = async () => {
+  if (!deleteTarget) return;
+
+  try {
+    await apiFetch(
+      `/api/mentor/services/${deleteTarget.id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    setServices((prev) =>
+      prev.filter(
+        (service) => service.id !== deleteTarget.id
+      )
+    );
+
     setDeleteTarget(null);
-  };
+  } catch (error) {
+    console.error("Delete mentor service error:", error);
+  }
+};
 
-  const handleToggle = (id: string) => {
-    setServices((prev) => prev.map((s) => s.id === id ? { ...s, active: !s.active } : s));
-  };
+  const handleToggle = async (id: string) => {
+  try {
+    const response = await apiFetch<{
+      success: boolean;
+      message: string;
+      service: ApiService;
+    }>(`/api/mentor/services/${id}/toggle`, {
+      method: "PATCH",
+    });
+
+    setServices((prev) =>
+      prev.map((service) =>
+       service.id === id
+  ? normalizeService(response.service)
+  : service
+      )
+    );
+  } catch (error) {
+    console.error("Toggle mentor service error:", error);
+  }
+};
+
+useEffect(() => {
+  async function loadServices() {
+    try {
+      const data = await apiFetch<{
+        services: ApiService[];
+      }>("/api/mentor/services");
+
+      setServices(
+        (data.services ?? []).map(normalizeService)
+      );
+    } catch (error) {
+      console.error("Load mentor services error:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadServices();
+}, []);
+
+if (loading) {
+  return (
+    <div className="py-16 text-center">
+      <p className="text-sm text-muted-foreground">
+        Loading services...
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="space-y-4">
@@ -382,7 +617,7 @@ export function MentorServices() {
           { label: "Total Services", value: services.length },
           { label: "Active",         value: activeCount },
           { label: "Total Bookings", value: totalBookings },
-          { label: "Price Range",    value: services.length ? `₹${minPrice}–₹${maxPrice}` : "—" },
+          { label: "Price Range", value: priceRange },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-border bg-surface p-4">
             <p className="text-2xl font-bold">{value}</p>
