@@ -25,6 +25,8 @@ function getRoleLabel(role: AuthUser["role"]): string {
       return "Mentor";
     case "opportunity_provider":
       return "Opportunity Provider";
+    case "hr":
+      return "HR Professional";
     case "admin":
       return "Admin";
     default:
@@ -50,7 +52,12 @@ function LoginPage() {
         body: JSON.stringify({ login, password }),
       });
       setAuth(res.user, res.api_token);
-      const redirectTo = res.user.role === "opportunity_provider" ? "/recruiter" : "/dashboard";
+      const redirectTo =
+        res.user.role === "hr"
+          ? "/hr"
+          : res.user.role === "opportunity_provider"
+            ? "/recruiter"
+            : "/dashboard";
       router.navigate({ to: redirectTo });
     } catch (err: any) {
       setError(err?.message ?? "Invalid credentials. Please try again.");

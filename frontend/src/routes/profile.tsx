@@ -43,7 +43,7 @@ function mapBackendUser(user: AuthUser): FormValues {
   return {
     fullName: user.name,
     email: user.email,
-    role: user.role,
+    role: user.role === "mentor" ? "mentor" : "seeker",
     company: user.company ?? "",
     currentRole: user.current_role ?? "",
     targetRoles: user.target_roles ?? "",

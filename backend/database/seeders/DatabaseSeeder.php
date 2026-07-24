@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'HR Test',
                 'mobile' => '9999999999',
                 'password' => Hash::make('12345678'),
-                'role' => 'opportunity_provider',
+                'role' => 'hr',
                 'email_verified_at' => now(),
             ]
         );

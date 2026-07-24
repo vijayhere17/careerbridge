@@ -2,7 +2,7 @@ export type AuthUser = {
   id: number;
   name: string;
   email: string;
-  role: "seeker" | "mentor" | "opportunity_provider" | "admin";
+  role: "seeker" | "mentor" | "opportunity_provider" | "hr" | "admin";
   mobile?: string | null;
   company?: string | null;
   current_role?: string | null;
