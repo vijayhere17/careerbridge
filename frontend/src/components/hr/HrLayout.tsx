@@ -39,10 +39,12 @@ function SidebarInner({
   onNavigate,
   companyName,
   userName,
+  unreadCount,
 }: {
   onNavigate?: () => void;
   companyName?: string;
   userName?: string;
+  unreadCount?: number;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -89,7 +91,12 @@ function SidebarInner({
               )}
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={2.25} />
-              <span className="truncate">{n.label}</span>
+              <span className="truncate flex-1">{n.label}</span>
+              {n.to === "/hr/notifications" && !!unreadCount && unreadCount > 0 && (
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -131,6 +138,7 @@ export function HrLayout({
   const [open, setOpen] = useState(false);
   const [userName, setUserName] = useState(getStoredUser()?.name);
   const [companyName, setCompanyName] = useState<string | undefined>();
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -140,8 +148,15 @@ export function HrLayout({
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? window.localStorage.getItem("cb-token") : null;
+    const user = getStoredUser();
+
     if (!token) {
       router.navigate({ to: "/login" });
+      return;
+    }
+
+    if (user && !["hr", "opportunity_provider", "admin"].includes(user.role)) {
+      router.navigate({ to: "/dashboard" });
       return;
     }
 
@@ -154,12 +169,17 @@ export function HrLayout({
       .catch(() => {
         /* profile optional on first load */
       });
+
+    hrService
+      .unreadNotifications()
+      .then((res) => setUnreadCount(res.data.unread_count ?? 0))
+      .catch(() => setUnreadCount(0));
   }, [router]);
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden lg:flex fixed inset-y-0 left-0 z-40 w-72 flex-col border-r border-border bg-surface">
-        <SidebarInner userName={userName} companyName={companyName} />
+        <SidebarInner userName={userName} companyName={companyName} unreadCount={unreadCount} />
       </aside>
 
       {open && (
@@ -172,6 +192,7 @@ export function HrLayout({
             <SidebarInner
               userName={userName}
               companyName={companyName}
+              unreadCount={unreadCount}
               onNavigate={() => setOpen(false)}
             />
           </aside>
@@ -199,9 +220,12 @@ export function HrLayout({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button asChild variant="ghost" size="icon" className="hidden sm:inline-flex">
+              <Button asChild variant="ghost" size="icon" className="relative hidden sm:inline-flex">
                 <Link to="/hr/notifications" aria-label="Notifications">
                   <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
+                  )}
                 </Link>
               </Button>
               <ThemeToggle />
