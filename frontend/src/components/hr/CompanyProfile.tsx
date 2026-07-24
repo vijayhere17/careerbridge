@@ -1,77 +1,159 @@
-import { useEffect, useState } from "react";
-import { Building2, Save } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Building2, ImagePlus, Save } from "lucide-react";
+import { toast } from "sonner";
 import { HrLayout } from "@/components/hr/HrLayout";
+import { HrErrorState, HrLoadingSkeleton, apiErrorMessage } from "@/components/hr/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { hrService } from "@/services/hrService";
+import { hrService, type HRProfile } from "@/services/hrService";
+
+type ProfileWithUrls = HRProfile & {
+  logo_url?: string | null;
+  cover_url?: string | null;
+};
+
+type CompanyForm = {
+  company_name: string;
+  industry: string;
+  company_size: string;
+  company_website: string;
+  office_location: string;
+  locations: string;
+  culture: string;
+  benefits: string;
+  company_description: string;
+  phone: string;
+  linkedin: string;
+  twitter: string;
+  facebook: string;
+  instagram: string;
+  youtube: string;
+  glassdoor: string;
+};
+
+const defaultForm: CompanyForm = {
+  company_name: "",
+  industry: "",
+  company_size: "",
+  company_website: "",
+  office_location: "",
+  locations: "",
+  culture: "",
+  benefits: "",
+  company_description: "",
+  phone: "",
+  linkedin: "",
+  twitter: "",
+  facebook: "",
+  instagram: "",
+  youtube: "",
+  glassdoor: "",
+};
 
 export function HrCompanyProfilePage() {
-  const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    company_name: "",
-    designation: "",
-    department: "",
-    company_website: "",
-    industry: "",
-    company_size: "",
-    company_description: "",
-    office_location: "",
-    phone: "",
-    linkedin: "",
-  });
+  const [form, setForm] = useState<CompanyForm>(defaultForm);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await hrService.getProfile();
+      const profile = res.data.profile as ProfileWithUrls | null;
+      const socialLinks = normalSocialLinks(profile?.social_links);
+
+      setForm({
+        company_name: profile?.company_name ?? "",
+        industry: profile?.industry ?? "",
+        company_size: profile?.company_size ?? "",
+        company_website: profile?.company_website ?? "",
+        office_location: profile?.office_location ?? "",
+        locations: (profile?.locations ?? []).join("\n"),
+        culture: profile?.culture ?? "",
+        benefits: profile?.benefits ?? "",
+        company_description: profile?.company_description ?? "",
+        phone: profile?.phone ?? "",
+        linkedin: profile?.linkedin ?? "",
+        twitter: socialLinks.twitter ?? "",
+        facebook: socialLinks.facebook ?? "",
+        instagram: socialLinks.instagram ?? "",
+        youtube: socialLinks.youtube ?? "",
+        glassdoor: socialLinks.glassdoor ?? "",
+      });
+      setLogoPreview(profile?.logo_url ?? profile?.company_logo ?? null);
+      setCoverPreview(profile?.cover_url ?? profile?.company_cover ?? null);
+    } catch (err) {
+      const message = apiErrorMessage(err, "Failed to load company profile");
+      setError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    hrService
-      .getProfile()
-      .then((res) => {
-        const profile = res.data.profile;
-        const user = res.data.user;
-        setForm({
-          name: user?.name ?? "",
-          mobile: user?.mobile ?? "",
-          company_name: profile?.company_name ?? "",
-          designation: profile?.designation ?? "",
-          department: profile?.department ?? "",
-          company_website: profile?.company_website ?? "",
-          industry: profile?.industry ?? "",
-          company_size: profile?.company_size ?? "",
-          company_description: profile?.company_description ?? "",
-          office_location: profile?.office_location ?? "",
-          phone: profile?.phone ?? "",
-          linkedin: profile?.linkedin ?? "",
-        });
-        setLogoPreview(profile?.company_logo ?? null);
-      })
-      .catch((err) => setError(err?.message ?? "Failed to load profile"))
-      .finally(() => setLoading(false));
+    load();
   }, []);
 
-  const set = (key: keyof typeof form, value: string) =>
+  const set = (key: keyof CompanyForm, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
+  };
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (!form.company_name.trim()) {
+      toast.error("Company name is required");
+      return;
+    }
+
     setSaving(true);
-    setMessage("");
     setError("");
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ""));
+      fd.append("company_name", form.company_name.trim());
+      fd.append("industry", form.industry.trim());
+      fd.append("company_size", form.company_size.trim());
+      fd.append("company_website", form.company_website.trim());
+      fd.append("office_location", form.office_location.trim());
+      fd.append("culture", form.culture.trim());
+      fd.append("benefits", form.benefits.trim());
+      fd.append("company_description", form.company_description.trim());
+      fd.append("phone", form.phone.trim());
+      fd.append("linkedin", form.linkedin.trim());
+      fd.append("locations", JSON.stringify(splitLocations(form.locations)));
+      fd.append(
+        "social_links",
+        JSON.stringify({
+          twitter: form.twitter.trim(),
+          facebook: form.facebook.trim(),
+          instagram: form.instagram.trim(),
+          youtube: form.youtube.trim(),
+          glassdoor: form.glassdoor.trim(),
+        }),
+      );
       if (logoFile) fd.append("company_logo", logoFile);
+      if (coverFile) fd.append("company_cover", coverFile);
+
       const res = await hrService.updateProfile(fd);
-      setLogoPreview(res.data.profile.company_logo ?? null);
-      setMessage("Company profile saved.");
-    } catch (err: any) {
-      setError(err?.message ?? "Could not save profile");
+      const profile = res.data.profile as ProfileWithUrls;
+      setLogoPreview(profile.logo_url ?? profile.company_logo ?? logoPreview);
+      setCoverPreview(profile.cover_url ?? profile.company_cover ?? coverPreview);
+      setLogoFile(null);
+      setCoverFile(null);
+      toast.success("Company profile saved");
+    } catch (err) {
+      const message = apiErrorMessage(err, "Could not save company profile");
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -82,39 +164,50 @@ export function HrCompanyProfilePage() {
       title="Company Profile"
       subtitle="Company details, culture and branding"
       actions={
-        <Button variant="brand" size="sm" form="hr-company-form" disabled={saving}>
-          <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
+        <Button variant="brand" size="sm" form="hr-company-form" disabled={saving || loading}>
+          <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save"}
         </Button>
       }
     >
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <HrLoadingSkeleton rows={5} />
       ) : (
-        <form id="hr-company-form" onSubmit={submit} className="max-w-3xl space-y-6">
-          {message && (
-            <div className="rounded-xl border border-secondary/30 bg-secondary-soft p-3 text-sm text-secondary">
-              {message}
-            </div>
-          )}
-          {error && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
-            </div>
-          )}
+        <form id="hr-company-form" onSubmit={submit} className="space-y-6">
+          {error && <HrErrorState message={error} onRetry={load} />}
 
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-card space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="grid h-14 w-14 place-items-center rounded-xl bg-primary-soft text-primary overflow-hidden">
+          <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+            <div className="relative h-48 bg-muted">
+              {coverPreview ? (
+                <img
+                  src={coverPreview}
+                  alt="Company cover preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="grid h-full place-items-center text-muted-foreground">
+                  <div className="text-center">
+                    <ImagePlus className="mx-auto h-10 w-10" />
+                    <p className="mt-2 text-sm">Upload a company cover</p>
+                  </div>
+                </div>
+              )}
+              <div className="absolute -bottom-10 left-5 grid h-24 w-24 place-items-center overflow-hidden rounded-2xl border-4 border-card bg-primary-soft text-primary shadow-card">
                 {logoPreview ? (
-                  <img src={logoPreview} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={logoPreview}
+                    alt="Company logo preview"
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <Building2 className="h-6 w-6" />
+                  <Building2 className="h-9 w-9" />
                 )}
               </div>
-              <div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 p-5 pt-14 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label>Company logo</Label>
                 <Input
-                  className="mt-1"
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
@@ -124,29 +217,106 @@ export function HrCompanyProfilePage() {
                   }}
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Company cover</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setCoverFile(file);
+                    if (file) setCoverPreview(URL.createObjectURL(file));
+                  }}
+                />
+              </div>
             </div>
+          </section>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Company name" value={form.company_name} onChange={(v) => set("company_name", v)} required />
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+            <h3 className="font-display text-lg font-semibold">Company details</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field
+                label="Company name"
+                value={form.company_name}
+                onChange={(v) => set("company_name", v)}
+                required
+              />
               <Field label="Industry" value={form.industry} onChange={(v) => set("industry", v)} />
-              <Field label="Company size" value={form.company_size} onChange={(v) => set("company_size", v)} placeholder="e.g. 51-200" />
-              <Field label="Website" value={form.company_website} onChange={(v) => set("company_website", v)} />
-              <Field label="Office location" value={form.office_location} onChange={(v) => set("office_location", v)} />
-              <Field label="Company phone" value={form.phone} onChange={(v) => set("phone", v)} />
-              <Field label="LinkedIn" value={form.linkedin} onChange={(v) => set("linkedin", v)} />
-              <Field label="Your designation" value={form.designation} onChange={(v) => set("designation", v)} />
-              <Field label="Your department" value={form.department} onChange={(v) => set("department", v)} />
-              <Field label="Your name" value={form.name} onChange={(v) => set("name", v)} />
-              <Field label="Your mobile" value={form.mobile} onChange={(v) => set("mobile", v)} />
+              <Field
+                label="Size"
+                value={form.company_size}
+                onChange={(v) => set("company_size", v)}
+                placeholder="e.g. 51-200"
+              />
+              <Field
+                label="Website"
+                value={form.company_website}
+                onChange={(v) => set("company_website", v)}
+                placeholder="https://example.com"
+              />
+              <Field
+                label="Office location"
+                value={form.office_location}
+                onChange={(v) => set("office_location", v)}
+              />
+              <Field label="Phone" value={form.phone} onChange={(v) => set("phone", v)} />
+              <Field
+                label="LinkedIn"
+                value={form.linkedin}
+                onChange={(v) => set("linkedin", v)}
+                placeholder="https://linkedin.com/company/..."
+              />
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Locations</Label>
+                <Textarea
+                  rows={3}
+                  value={form.locations}
+                  onChange={(e) => set("locations", e.target.value)}
+                  placeholder="New York, Remote, London or one per line"
+                />
+              </div>
             </div>
+          </section>
 
-            <div className="space-y-2">
-              <Label>Company description / culture</Label>
-              <Textarea
-                rows={5}
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+            <h3 className="font-display text-lg font-semibold">Culture and benefits</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4">
+              <TextareaField
+                label="Description"
                 value={form.company_description}
-                onChange={(e) => set("company_description", e.target.value)}
-                placeholder="Describe your company culture, mission and workplace…"
+                onChange={(v) => set("company_description", v)}
+                placeholder="Describe your mission, team, products, and workplace."
+              />
+              <TextareaField
+                label="Culture"
+                value={form.culture}
+                onChange={(v) => set("culture", v)}
+                placeholder="What values and working style should candidates expect?"
+              />
+              <TextareaField
+                label="Benefits"
+                value={form.benefits}
+                onChange={(v) => set("benefits", v)}
+                placeholder="Health benefits, flexibility, learning budgets, equity, and perks."
+              />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-card p-5 shadow-card">
+            <h3 className="font-display text-lg font-semibold">Social links</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Twitter" value={form.twitter} onChange={(v) => set("twitter", v)} />
+              <Field label="Facebook" value={form.facebook} onChange={(v) => set("facebook", v)} />
+              <Field
+                label="Instagram"
+                value={form.instagram}
+                onChange={(v) => set("instagram", v)}
+              />
+              <Field label="YouTube" value={form.youtube} onChange={(v) => set("youtube", v)} />
+              <Field
+                label="Glassdoor"
+                value={form.glassdoor}
+                onChange={(v) => set("glassdoor", v)}
               />
             </div>
           </section>
@@ -180,4 +350,40 @@ function Field({
       />
     </div>
   );
+}
+
+function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Textarea
+        rows={5}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
+function splitLocations(value: string) {
+  return value
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalSocialLinks(value: HRProfile["social_links"]) {
+  if (!value || Array.isArray(value)) return {};
+  return value;
 }
