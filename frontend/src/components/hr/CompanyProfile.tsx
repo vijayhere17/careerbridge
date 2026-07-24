@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { hrService, type HRProfile } from "@/services/hrService";
+import { hrService } from "@/services/hrService";
 
 export function HrCompanyProfilePage() {
   const [form, setForm] = useState({
