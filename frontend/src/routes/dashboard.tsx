@@ -82,6 +82,16 @@ mentor: [
     { label: "Wallet",                  description: "Balance and transaction history",   icon: Wallet },
     { label: "Notifications",           description: "All alerts and updates",            icon: Bell },
   ],
+  hr: [
+    { label: "Dashboard", description: "Hiring overview and priorities", icon: LayoutDashboard },
+    { label: "Jobs", description: "Manage HR job openings", icon: BriefcaseBusiness },
+    { label: "Applications", description: "Review candidate applications", icon: UsersRound },
+    { label: "Pipeline", description: "Hiring pipeline board", icon: FileText },
+    { label: "Interviews", description: "Schedule and track interviews", icon: CalendarDays },
+    { label: "Reports", description: "Hiring analytics", icon: Award },
+    { label: "Company Profile", description: "Company details and branding", icon: UserRound },
+    { label: "Settings", description: "Account and preferences", icon: Settings },
+  ],
   admin: [
     { label: "Dashboard",             description: "Platform overview and analytics",   icon: LayoutDashboard },
     { label: "Users",                 description: "Manage all platform users",         icon: UsersRound },
@@ -98,6 +108,7 @@ const roleTheme: Record<Role, { name: string; gradient: string; accent: string }
   seeker:               { name: "Candidate",            gradient: "from-emerald-500 to-teal-600",   accent: "text-emerald-600" },
   mentor:               { name: "Mentor",               gradient: "from-violet-500 to-purple-600",  accent: "text-violet-600" },
   opportunity_provider: { name: "Opportunity Provider", gradient: "from-orange-500 to-amber-600",  accent: "text-orange-600" },
+  hr:                   { name: "HR Professional",      gradient: "from-sky-500 to-blue-600",       accent: "text-sky-600" },
   admin:                { name: "Admin",                gradient: "from-red-500 to-rose-600",       accent: "text-red-600" },
 };
 
@@ -155,6 +166,16 @@ const [upcomingSessions, setUpcomingSessions] = useState<MentorSession[]>([]);
 
 setAuth(a.user, token);
 setUser(a.user);
+
+if (a.user.role === "hr") {
+  router.navigate({ to: "/hr" });
+  return;
+}
+
+if (a.user.role === "opportunity_provider") {
+  router.navigate({ to: "/recruiter" });
+  return;
+}
 
 if (a.user.role === "mentor") {
   setMentorOnboardingStatus(

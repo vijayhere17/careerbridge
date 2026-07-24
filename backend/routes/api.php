@@ -31,6 +31,16 @@ use App\Http\Controllers\Api\MentorNotificationController;
 use App\Http\Controllers\Api\MentorProfileSettingsController;
 use App\Http\Controllers\Api\Mentor\MentorSecurityController;
 use App\Http\Controllers\Api\Mentor\MentorDashboardController;
+use App\Http\Controllers\Api\HR\HRDashboardController;
+use App\Http\Controllers\Api\HR\HRJobController;
+use App\Http\Controllers\Api\HR\HRApplicationController;
+use App\Http\Controllers\Api\HR\HRCandidateController;
+use App\Http\Controllers\Api\HR\HRInterviewController;
+use App\Http\Controllers\Api\HR\HRPipelineController;
+use App\Http\Controllers\Api\HR\HRReportController;
+use App\Http\Controllers\Api\HR\HRProfileController;
+use App\Http\Controllers\Api\HR\HRNotificationController;
+use App\Http\Controllers\Api\HR\HRSettingsController;
 
 
 Route::post(
@@ -205,7 +215,7 @@ Route::post('auth/verify-registration', function (Request $request) use ($verify
 Route::post('auth/select-role', function (Request $request) use ($resolveAuthenticatedUser, $userFields) {
     $user = $resolveAuthenticatedUser($request);
     if (! $user) return response()->json(['message' => 'Unauthorized.'], 401);
-    $data = $request->validate(['role' => 'required|in:seeker,mentor,opportunity_provider,admin']);
+    $data = $request->validate(['role' => 'required|in:seeker,mentor,opportunity_provider,hr,admin']);
     $user->update($data);
     return response()->json(['user' => $user->only($userFields)]);
 });
@@ -303,7 +313,7 @@ Route::put('auth/profile', function (Request $request) use ($resolveAuthenticate
     $data = $request->validate([
         'name'         => 'required|string|max:255',
         'email'        => 'required|email|max:255|unique:users,email,' . $user->id,
-        'role'         => 'required|in:seeker,mentor,opportunity_provider,admin',
+        'role'         => 'required|in:seeker,mentor,opportunity_provider,hr,admin',
         'company'      => 'nullable|string|max:255',
         'current_role' => 'nullable|string|max:255',
         'target_roles' => 'nullable|string',
@@ -382,4 +392,52 @@ Route::prefix('mentor')->group(function () {
 
     // Reviews
     Route::get('reviews',                               [MentorController::class, 'mentorReviews']);
+});
+
+// ── HR MODULE ─────────────────────────────────────────────────────────────────
+
+Route::prefix('hr')->group(function () {
+    Route::get('dashboard', [HRDashboardController::class, 'index']);
+
+    Route::get('jobs', [HRJobController::class, 'index']);
+    Route::post('jobs', [HRJobController::class, 'store']);
+    Route::get('jobs/{id}', [HRJobController::class, 'show']);
+    Route::put('jobs/{id}', [HRJobController::class, 'update']);
+    Route::post('jobs/{id}/close', [HRJobController::class, 'close']);
+    Route::delete('jobs/{id}', [HRJobController::class, 'destroy']);
+
+    Route::get('applications', [HRApplicationController::class, 'index']);
+    Route::post('applications', [HRApplicationController::class, 'store']);
+    Route::post('applications/bulk', [HRApplicationController::class, 'bulkUpdate']);
+    Route::get('applications/{id}', [HRApplicationController::class, 'show']);
+    Route::put('applications/{id}', [HRApplicationController::class, 'update']);
+    Route::delete('applications/{id}', [HRApplicationController::class, 'destroy']);
+
+    Route::get('candidates', [HRCandidateController::class, 'index']);
+    Route::get('candidates/{id}', [HRCandidateController::class, 'show']);
+    Route::post('candidates/{id}/notes', [HRCandidateController::class, 'storeNote']);
+    Route::delete('candidates/{id}/notes/{noteId}', [HRCandidateController::class, 'destroyNote']);
+
+    Route::get('interviews', [HRInterviewController::class, 'index']);
+    Route::post('interviews', [HRInterviewController::class, 'store']);
+    Route::get('interviews/{id}', [HRInterviewController::class, 'show']);
+    Route::put('interviews/{id}', [HRInterviewController::class, 'update']);
+    Route::delete('interviews/{id}', [HRInterviewController::class, 'destroy']);
+
+    Route::get('pipeline', [HRPipelineController::class, 'index']);
+    Route::post('pipeline/{id}/move', [HRPipelineController::class, 'move']);
+
+    Route::get('reports', [HRReportController::class, 'index']);
+
+    Route::get('profile', [HRProfileController::class, 'show']);
+    Route::post('profile', [HRProfileController::class, 'update']);
+
+    Route::get('notifications', [HRNotificationController::class, 'index']);
+    Route::post('notifications/{id}/read', [HRNotificationController::class, 'markRead']);
+    Route::post('notifications/read-all', [HRNotificationController::class, 'markAllRead']);
+
+    Route::get('settings', [HRSettingsController::class, 'show']);
+    Route::put('settings/profile', [HRSettingsController::class, 'updateProfile']);
+    Route::post('settings/password', [HRSettingsController::class, 'changePassword']);
+    Route::put('settings/preferences', [HRSettingsController::class, 'updatePreferences']);
 });

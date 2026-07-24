@@ -64,6 +64,43 @@ public function reviewsReceived(): HasMany
     return $this->hasMany(MentorReview::class, 'mentor_id');
 }
 
+public function hrProfile(): HasOne
+{
+    return $this->hasOne(HRProfile::class);
+}
+
+public function hrJobs(): HasMany
+{
+    return $this->hasMany(HRJob::class, 'hr_id');
+}
+
+public function hrApplications(): HasMany
+{
+    return $this->hasManyThrough(
+        HRApplication::class,
+        HRJob::class,
+        'hr_id',
+        'job_id',
+        'id',
+        'id'
+    );
+}
+
+public function hrNotes(): HasMany
+{
+    return $this->hasMany(HRCandidateNote::class, 'hr_id');
+}
+
+public function hrInterviews(): HasMany
+{
+    return $this->hasMany(HRInterview::class, 'hr_id');
+}
+
+public function hrActivityLogs(): HasMany
+{
+    return $this->hasMany(HRActivityLog::class, 'hr_id');
+}
+
     /**
      * The attributes that are mass assignable.
      *
