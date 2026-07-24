@@ -41,6 +41,14 @@ use App\Http\Controllers\Api\HR\HRReportController;
 use App\Http\Controllers\Api\HR\HRProfileController;
 use App\Http\Controllers\Api\HR\HRNotificationController;
 use App\Http\Controllers\Api\HR\HRSettingsController;
+use App\Http\Controllers\Api\Recruiter\RecruiterApplicationController;
+use App\Http\Controllers\Api\Recruiter\RecruiterDashboardController;
+use App\Http\Controllers\Api\Recruiter\RecruiterNotificationController;
+use App\Http\Controllers\Api\Recruiter\RecruiterOpportunityController;
+use App\Http\Controllers\Api\Recruiter\RecruiterSettingsController;
+use App\Http\Controllers\Api\Recruiter\RecruiterUnlockController;
+use App\Http\Controllers\Api\Recruiter\RecruiterWalletController;
+use App\Http\Controllers\Api\Recruiter\RecruiterWithdrawController;
 
 
 Route::post(
@@ -456,4 +464,55 @@ Route::prefix('hr')->group(function () {
     Route::post('settings/password', [HRSettingsController::class, 'changePassword']);
     Route::put('settings/preferences', [HRSettingsController::class, 'updatePreferences']);
     Route::post('settings/avatar', [HRSettingsController::class, 'updateAvatar']);
+});
+
+// ── RECRUITER MODULE ──────────────────────────────────────────────────────────
+
+Route::prefix('recruiter')->group(function () {
+    Route::get('dashboard', [RecruiterDashboardController::class, 'index']);
+
+    Route::get('opportunities', [RecruiterOpportunityController::class, 'index']);
+    Route::post('opportunities', [RecruiterOpportunityController::class, 'store']);
+    Route::post('opportunities/save-draft', [RecruiterOpportunityController::class, 'saveDraft']);
+    Route::post('opportunities/bulk', [RecruiterOpportunityController::class, 'bulk']);
+    Route::get('opportunities/{id}', [RecruiterOpportunityController::class, 'show']);
+    Route::put('opportunities/{id}', [RecruiterOpportunityController::class, 'update']);
+    Route::delete('opportunities/{id}', [RecruiterOpportunityController::class, 'destroy']);
+    Route::post('opportunities/{id}/close', [RecruiterOpportunityController::class, 'close']);
+    Route::post('opportunities/{id}/publish', [RecruiterOpportunityController::class, 'publish']);
+    Route::post('opportunities/{id}/draft', [RecruiterOpportunityController::class, 'draft']);
+    Route::post('opportunities/{id}/archive', [RecruiterOpportunityController::class, 'archive']);
+    Route::post('opportunities/{id}/pause', [RecruiterOpportunityController::class, 'pause']);
+    Route::post('opportunities/{id}/reopen', [RecruiterOpportunityController::class, 'reopen']);
+    Route::post('opportunities/{id}/duplicate', [RecruiterOpportunityController::class, 'duplicate']);
+
+    Route::get('applications', [RecruiterApplicationController::class, 'index']);
+    Route::post('applications', [RecruiterApplicationController::class, 'store']);
+    Route::post('applications/bulk', [RecruiterApplicationController::class, 'bulkUpdate']);
+    Route::post('applications/{id}/shortlist', [RecruiterApplicationController::class, 'shortlist']);
+    Route::post('applications/{id}/reject', [RecruiterApplicationController::class, 'reject']);
+    Route::post('applications/{id}/schedule-interview', [RecruiterApplicationController::class, 'scheduleInterview']);
+    Route::get('applications/{id}', [RecruiterApplicationController::class, 'show']);
+    Route::put('applications/{id}', [RecruiterApplicationController::class, 'update']);
+
+    Route::get('notifications', [RecruiterNotificationController::class, 'index']);
+    Route::get('notifications/unread-count', [RecruiterNotificationController::class, 'unreadCount']);
+    Route::post('notifications/{id}/read', [RecruiterNotificationController::class, 'markRead']);
+    Route::post('notifications/read-all', [RecruiterNotificationController::class, 'markAllRead']);
+    Route::delete('notifications/{id}', [RecruiterNotificationController::class, 'destroy']);
+
+    Route::get('wallet', [RecruiterWalletController::class, 'index']);
+    Route::get('wallet/transactions', [RecruiterWalletController::class, 'transactions']);
+
+    Route::get('unlocks', [RecruiterUnlockController::class, 'index']);
+    Route::get('unlocks/stats', [RecruiterUnlockController::class, 'stats']);
+    Route::get('unlocks/chart', [RecruiterUnlockController::class, 'chart']);
+
+    Route::get('withdraw', [RecruiterWithdrawController::class, 'index']);
+    Route::post('withdraw', [RecruiterWithdrawController::class, 'store']);
+
+    Route::get('settings', [RecruiterSettingsController::class, 'show']);
+    Route::put('settings/profile', [RecruiterSettingsController::class, 'updateProfile']);
+    Route::post('settings/password', [RecruiterSettingsController::class, 'changePassword']);
+    Route::put('settings/preferences', [RecruiterSettingsController::class, 'updatePreferences']);
 });
