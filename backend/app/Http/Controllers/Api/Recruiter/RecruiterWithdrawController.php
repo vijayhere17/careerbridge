@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Validator;
 
 class RecruiterWithdrawController extends RecruiterBaseController
 {
+    public const MIN_WITHDRAW = 500;
+
     public function index(Request $request)
     {
         [$user, $error] = $this->recruiterUser($request);
@@ -17,6 +19,7 @@ class RecruiterWithdrawController extends RecruiterBaseController
         }
 
         $validator = Validator::make($request->query(), [
+            'status' => 'nullable|in:pending,approved,rejected',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ]);
@@ -28,16 +31,22 @@ class RecruiterWithdrawController extends RecruiterBaseController
         $wallet = Wallet::firstOrCreate(['user_id' => $user->id], ['balance' => 0]);
         $pending = WithdrawRequest::where('user_id', $user->id)->where('status', 'pending')->sum('amount');
         $withdrawn = WithdrawRequest::where('user_id', $user->id)->where('status', 'approved')->sum('amount');
-        $history = WithdrawRequest::where('user_id', $user->id)
-            ->latest()
-            ->paginate(min((int) $request->query('per_page', 20), 100));
+        $historyQuery = WithdrawRequest::where('user_id', $user->id)->latest();
+
+        if ($status = $request->query('status')) {
+            $historyQuery->where('status', $status);
+        }
+
+        $history = $historyQuery->paginate(min((int) $request->query('per_page', 20), 100));
         $history->getCollection()->transform(fn (WithdrawRequest $withdraw) => $this->transform($withdraw));
 
         return $this->success([
             'available_balance' => max((float) $wallet->balance - (float) $pending, 0),
             'wallet_balance' => (float) $wallet->balance,
+            'current_balance' => (float) $wallet->balance,
             'pending' => (float) $pending,
             'withdrawn' => (float) $withdrawn,
+            'minimum_withdraw' => self::MIN_WITHDRAW,
             'history' => $history,
         ], 'Withdrawal details retrieved successfully.');
     }
@@ -50,15 +59,24 @@ class RecruiterWithdrawController extends RecruiterBaseController
         }
 
         $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:500',
+            'amount' => 'required|numeric|min:' . self::MIN_WITHDRAW,
             'bank_name' => 'required|string|max:255',
+            'account_holder' => 'required|string|max:255',
             'account_number' => 'required|string|max:255',
+            'ifsc' => 'nullable|string|max:20',
             'upi' => 'nullable|string|max:255',
             'remarks' => 'nullable|string|max:2000',
         ]);
 
         if ($validator->fails()) {
             return $this->validationError($validator->errors());
+        }
+
+        if (! $request->filled('upi') && ! $request->filled('ifsc')) {
+            return $this->validationError([
+                'ifsc' => ['Provide IFSC or UPI for payout.'],
+                'upi' => ['Provide UPI or IFSC for payout.'],
+            ]);
         }
 
         $wallet = Wallet::firstOrCreate(['user_id' => $user->id], ['balance' => 0]);
@@ -70,6 +88,7 @@ class RecruiterWithdrawController extends RecruiterBaseController
             return response()->json([
                 'success' => false,
                 'message' => 'Insufficient available wallet balance.',
+                'errors' => ['amount' => ['Insufficient available wallet balance.']],
                 'data' => [
                     'available_balance' => $available,
                     'wallet_balance' => (float) $wallet->balance,
@@ -78,16 +97,35 @@ class RecruiterWithdrawController extends RecruiterBaseController
             ], 422);
         }
 
-        $withdraw = WithdrawRequest::create([
+        $payload = [
             'user_id' => $user->id,
             'amount' => $amount,
             'bank_name' => $request->input('bank_name'),
             'account_number' => $request->input('account_number'),
-            'remarks' => $this->remarks($request->input('remarks'), $request->input('upi')),
+            'remarks' => $request->input('remarks'),
             'status' => 'pending',
-        ]);
+        ];
+
+        if ($this->hasColumn('account_holder')) {
+            $payload['account_holder'] = $request->input('account_holder');
+        }
+        if ($this->hasColumn('ifsc')) {
+            $payload['ifsc'] = $request->input('ifsc');
+        }
+        if ($this->hasColumn('upi')) {
+            $payload['upi'] = $request->input('upi');
+        } elseif ($request->filled('upi')) {
+            $payload['remarks'] = $this->remarks($request->input('remarks'), $request->input('upi'));
+        }
+
+        $withdraw = WithdrawRequest::create($payload);
 
         return $this->success($this->transform($withdraw), 'Withdrawal request submitted successfully.', 201);
+    }
+
+    private function hasColumn(string $column): bool
+    {
+        return \Illuminate\Support\Facades\Schema::hasColumn('withdraw_requests', $column);
     }
 
     private function remarks(?string $remarks, ?string $upi): ?string
@@ -111,7 +149,10 @@ class RecruiterWithdrawController extends RecruiterBaseController
             'id' => $withdraw->id,
             'amount' => (float) $withdraw->amount,
             'bank_name' => $withdraw->bank_name,
+            'account_holder' => $withdraw->account_holder ?? null,
             'account_number' => $withdraw->account_number,
+            'ifsc' => $withdraw->ifsc ?? null,
+            'upi' => $withdraw->upi ?? null,
             'remarks' => $withdraw->remarks,
             'status' => $withdraw->status,
             'admin_remarks' => $withdraw->admin_remarks,

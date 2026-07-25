@@ -22,6 +22,7 @@ export type RecruiterCompanyProfile = {
   user_id?: number;
   company_name?: string | null;
   company_logo?: string | null;
+  cover_image?: string | null;
   recruiter_name?: string | null;
   designation?: string | null;
   about_company?: string | null;

@@ -176,6 +176,8 @@ class RecruiterOnboardingController extends RecruiterBaseController
             'company_registration_number' => "{$req}|string|max:120",
             'gst_number' => 'nullable|string|max:120',
             'company_logo' => ($strict && ! $profile->company_logo ? 'required' : 'nullable') . '|image|max:4096',
+            'cover_image' => 'nullable|image|max:8192',
+            'recruiter_type' => 'nullable|in:' . implode(',', RecruiterProfile::TYPES),
             'save_and_continue' => 'nullable|boolean',
         ]);
 
@@ -184,7 +186,7 @@ class RecruiterOnboardingController extends RecruiterBaseController
         }
 
         $data = $validator->validated();
-        unset($data['company_logo'], $data['save_and_continue']);
+        unset($data['company_logo'], $data['cover_image'], $data['save_and_continue']);
 
         $profile->fill($data);
 
@@ -193,6 +195,13 @@ class RecruiterOnboardingController extends RecruiterBaseController
                 Storage::disk('public')->delete($profile->company_logo);
             }
             $profile->company_logo = $request->file('company_logo')->store('recruiter/logos', 'public');
+        }
+
+        if ($request->hasFile('cover_image')) {
+            if ($profile->cover_image && ! str_starts_with($profile->cover_image, 'http')) {
+                Storage::disk('public')->delete($profile->cover_image);
+            }
+            $profile->cover_image = $request->file('cover_image')->store('recruiter/covers', 'public');
         }
 
         if ($profile->isRejected()) {

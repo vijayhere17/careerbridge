@@ -66,6 +66,27 @@ class RecruiterOpportunityController extends RecruiterBaseController
         return $this->success($opportunities, 'Opportunities retrieved successfully.');
     }
 
+    public function summary(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $base = RecruiterOpportunity::where('user_id', $user->id);
+
+        return $this->success([
+            'total' => (clone $base)->count(),
+            'draft' => (clone $base)->where('status', 'draft')->count(),
+            'published' => (clone $base)->where('status', 'published')->count(),
+            'closed' => (clone $base)->where('status', 'closed')->count(),
+            'archived' => (clone $base)->where('status', 'archived')->count(),
+            'paused' => (clone $base)->where('status', 'paused')->count(),
+            'views' => (int) (clone $base)->sum('views'),
+            'applications' => (int) (clone $base)->sum('applications_count'),
+        ], 'Opportunity summary retrieved successfully.');
+    }
+
     public function store(Request $request)
     {
         return $this->createOpportunity($request, 'published', 'Opportunity published successfully.');

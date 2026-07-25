@@ -512,8 +512,12 @@ Route::prefix('recruiter')->group(function () {
     Route::post('onboarding/resubmit', [RecruiterOnboardingController::class, 'resubmit']);
     Route::post('onboarding/{userId}/review', [RecruiterOnboardingController::class, 'review']);
 
+    Route::get('profile', [RecruiterOnboardingController::class, 'showProfile']);
+    Route::post('profile', [RecruiterOnboardingController::class, 'updateProfile']);
+
     Route::get('dashboard', [RecruiterDashboardController::class, 'index']);
 
+    Route::get('opportunities/summary', [RecruiterOpportunityController::class, 'summary']);
     Route::get('opportunities', [RecruiterOpportunityController::class, 'index']);
     Route::post('opportunities', [RecruiterOpportunityController::class, 'store']);
     Route::post('opportunities/save-draft', [RecruiterOpportunityController::class, 'saveDraft']);
@@ -534,6 +538,7 @@ Route::prefix('recruiter')->group(function () {
     Route::post('applications/bulk', [RecruiterApplicationController::class, 'bulkUpdate']);
     Route::post('applications/{id}/shortlist', [RecruiterApplicationController::class, 'shortlist']);
     Route::post('applications/{id}/reject', [RecruiterApplicationController::class, 'reject']);
+    Route::post('applications/{id}/hire', [RecruiterApplicationController::class, 'hire']);
     Route::post('applications/{id}/schedule-interview', [RecruiterApplicationController::class, 'scheduleInterview']);
     Route::get('applications/{id}', [RecruiterApplicationController::class, 'show']);
     Route::put('applications/{id}', [RecruiterApplicationController::class, 'update']);
