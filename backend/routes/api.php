@@ -44,11 +44,13 @@ use App\Http\Controllers\Api\HR\HRSettingsController;
 use App\Http\Controllers\Api\Recruiter\RecruiterApplicationController;
 use App\Http\Controllers\Api\Recruiter\RecruiterDashboardController;
 use App\Http\Controllers\Api\Recruiter\RecruiterNotificationController;
+use App\Http\Controllers\Api\Recruiter\RecruiterOnboardingController;
 use App\Http\Controllers\Api\Recruiter\RecruiterOpportunityController;
 use App\Http\Controllers\Api\Recruiter\RecruiterSettingsController;
 use App\Http\Controllers\Api\Recruiter\RecruiterUnlockController;
 use App\Http\Controllers\Api\Recruiter\RecruiterWalletController;
 use App\Http\Controllers\Api\Recruiter\RecruiterWithdrawController;
+use App\Services\RecruiterOnboardingService;
 
 
 Route::post(
@@ -210,25 +212,51 @@ Route::post('auth/register', function (Request $request) use ($issueOtp) {
     return response()->json(['message' => 'OTP sent.'] + $issueOtp($data['email'], 'registration'), 201);
 });
 
+$recruiterOnboardingPayload = function (?User $user): ?array {
+    if (! $user || $user->role !== 'opportunity_provider') {
+        return null;
+    }
+
+    return app(RecruiterOnboardingService::class)->statusPayload($user);
+};
+
 Route::post('auth/verify-registration', function (Request $request) use ($verifyOtp, $userFields) {
     $data = $request->validate(['email' => 'required|email', 'otp' => 'required|string|size:6']);
     if (! $verifyOtp($data['email'], 'registration', $data['otp'])) {
         throw ValidationException::withMessages(['otp' => ['The OTP is invalid or expired.']]);
     }
     $user = User::where('email', $data['email'])->firstOrFail();
-    $user->forceFill(['email_verified_at' => now(), 'api_token' => Str::random(60)])->save();
+    $user->forceFill([
+        'email_verified_at' => now(),
+        'verified_email' => true,
+        'api_token' => Str::random(60),
+    ])->save();
     return response()->json(['user' => $user->only($userFields), 'api_token' => $user->api_token]);
 });
 
-Route::post('auth/select-role', function (Request $request) use ($resolveAuthenticatedUser, $userFields) {
+Route::post('auth/select-role', function (Request $request) use ($resolveAuthenticatedUser, $userFields, $recruiterOnboardingPayload) {
     $user = $resolveAuthenticatedUser($request);
     if (! $user) return response()->json(['message' => 'Unauthorized.'], 401);
     $data = $request->validate(['role' => 'required|in:seeker,mentor,opportunity_provider,hr,admin']);
     $user->update($data);
-    return response()->json(['user' => $user->only($userFields)]);
+
+    $recruiterOnboarding = null;
+    if ($data['role'] === 'opportunity_provider') {
+        $service = app(RecruiterOnboardingService::class);
+        if ($user->email_verified_at || $user->verified_email) {
+            $service->syncEmailVerification($user, true);
+        }
+        $service->ensureProfile($user->fresh());
+        $recruiterOnboarding = $recruiterOnboardingPayload($user->fresh());
+    }
+
+    return response()->json([
+        'user' => $user->fresh()->only($userFields),
+        'recruiter_onboarding' => $recruiterOnboarding,
+    ]);
 });
 
-Route::post('auth/login', function (Request $request) use ($userFields) {
+Route::post('auth/login', function (Request $request) use ($userFields, $recruiterOnboardingPayload) {
     $data = $request->validate(['login' => 'required|string', 'password' => 'required|string|min:8']);
     $user = User::where('email', $data['login'])->orWhere('mobile', $data['login'])->first();
     if (! $user || ! Hash::check($data['password'], $user->password)) {
@@ -252,6 +280,8 @@ return response()->json([
             'verified' => $mentorProfile?->verified ?? false,
         ]
         : null,
+
+    'recruiter_onboarding' => $recruiterOnboardingPayload($user),
 ]);
 });
 
@@ -286,7 +316,7 @@ Route::post('auth/logout', function (Request $request) use ($resolveAuthenticate
 });
 
 
-Route::get('auth/user', function (Request $request) use ($resolveAuthenticatedUser, $userFields) {
+Route::get('auth/user', function (Request $request) use ($resolveAuthenticatedUser, $userFields, $recruiterOnboardingPayload) {
     $user = $resolveAuthenticatedUser($request);
 
     if (!$user) {
@@ -311,6 +341,8 @@ Route::get('auth/user', function (Request $request) use ($resolveAuthenticatedUs
                 'verified' => $mentorProfile?->verified ?? false,
             ]
             : null,
+
+        'recruiter_onboarding' => $recruiterOnboardingPayload($user),
     ]);
 });
 
@@ -469,6 +501,17 @@ Route::prefix('hr')->group(function () {
 // ── RECRUITER MODULE ──────────────────────────────────────────────────────────
 
 Route::prefix('recruiter')->group(function () {
+    Route::get('onboarding/status', [RecruiterOnboardingController::class, 'status']);
+    Route::post('onboarding/email/send-otp', [RecruiterOnboardingController::class, 'sendEmailOtp']);
+    Route::post('onboarding/email/verify', [RecruiterOnboardingController::class, 'verifyEmail']);
+    Route::post('onboarding/mobile/send-otp', [RecruiterOnboardingController::class, 'sendMobileOtp']);
+    Route::post('onboarding/mobile/verify', [RecruiterOnboardingController::class, 'verifyMobile']);
+    Route::get('onboarding/profile', [RecruiterOnboardingController::class, 'showProfile']);
+    Route::post('onboarding/profile', [RecruiterOnboardingController::class, 'updateProfile']);
+    Route::post('onboarding/type', [RecruiterOnboardingController::class, 'selectType']);
+    Route::post('onboarding/resubmit', [RecruiterOnboardingController::class, 'resubmit']);
+    Route::post('onboarding/{userId}/review', [RecruiterOnboardingController::class, 'review']);
+
     Route::get('dashboard', [RecruiterDashboardController::class, 'index']);
 
     Route::get('opportunities', [RecruiterOpportunityController::class, 'index']);

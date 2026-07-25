@@ -14,6 +14,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, setAuth, type AuthUser } from "@/lib/auth";
+import {
+  onboardingRedirectPath,
+  type RecruiterOnboardingStatus,
+} from "@/services/recruiterOnboardingService";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
@@ -47,7 +51,11 @@ function LoginPage() {
     setError("");
     setSaving(true);
     try {
-      const res = await apiFetch<{ user: AuthUser; api_token: string }>("/api/auth/login", {
+      const res = await apiFetch<{
+        user: AuthUser;
+        api_token: string;
+        recruiter_onboarding?: RecruiterOnboardingStatus | null;
+      }>("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ login, password }),
       });
@@ -56,7 +64,7 @@ function LoginPage() {
         res.user.role === "hr"
           ? "/hr"
           : res.user.role === "opportunity_provider"
-            ? "/recruiter"
+            ? onboardingRedirectPath(res.recruiter_onboarding)
             : "/dashboard";
       router.navigate({ to: redirectTo });
     } catch (err: any) {

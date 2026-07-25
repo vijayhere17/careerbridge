@@ -48,6 +48,7 @@ import { Route as RecruiterSettingsRouteImport } from './routes/recruiter/settin
 import { Route as RecruiterUnlockEarningsRouteImport } from './routes/recruiter/unlock-earnings'
 import { Route as RecruiterWalletRouteImport } from './routes/recruiter/wallet'
 import { Route as RecruiterWithdrawRouteImport } from './routes/recruiter/withdraw'
+import { Route as RecruiterOnboardingRouteImport } from './routes/recruiter/onboarding'
 import { Route as HrCandidatesIdRouteImport } from './routes/hr/candidates.$id'
 import { Route as HrJobsCreateRouteImport } from './routes/hr/jobs.create'
 import { Route as HrJobsIdEditRouteImport } from './routes/hr/jobs.$id.edit'
@@ -247,6 +248,11 @@ const RecruiterWithdrawRoute = RecruiterWithdrawRouteImport.update({
   path: '/recruiter/withdraw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecruiterOnboardingRoute = RecruiterOnboardingRouteImport.update({
+  id: '/recruiter/onboarding',
+  path: '/recruiter/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HrCandidatesIdRoute = HrCandidatesIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -302,6 +308,7 @@ export interface FileRoutesByFullPath {
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
   '/hr/': typeof HrIndexRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/': typeof RecruiterIndexRoute
   '/hr/candidates/$id': typeof HrCandidatesIdRoute
   '/hr/jobs/create': typeof HrJobsCreateRoute
@@ -345,6 +352,7 @@ export interface FileRoutesByTo {
   '/recruiter/unlock-earnings': typeof RecruiterUnlockEarningsRoute
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/hr': typeof HrIndexRoute
   '/recruiter': typeof RecruiterIndexRoute
   '/hr/candidates/$id': typeof HrCandidatesIdRoute
@@ -391,6 +399,7 @@ export interface FileRoutesById {
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
   '/hr/': typeof HrIndexRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/': typeof RecruiterIndexRoute
   '/hr/candidates/$id': typeof HrCandidatesIdRoute
   '/hr/jobs/create': typeof HrJobsCreateRoute
@@ -436,6 +445,7 @@ export interface FileRouteTypes {
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
+    | '/recruiter/onboarding'
     | '/hr/'
     | '/recruiter/'
     | '/hr/candidates/$id'
@@ -480,6 +490,7 @@ export interface FileRouteTypes {
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
+    | '/recruiter/onboarding'
     | '/hr'
     | '/recruiter'
     | '/hr/candidates/$id'
@@ -524,6 +535,7 @@ export interface FileRouteTypes {
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
+    | '/recruiter/onboarding'
     | '/hr/'
     | '/recruiter/'
     | '/hr/candidates/$id'
@@ -566,6 +578,7 @@ export interface RootRouteChildren {
   RecruiterUnlockEarningsRoute: typeof RecruiterUnlockEarningsRoute
   RecruiterWalletRoute: typeof RecruiterWalletRoute
   RecruiterWithdrawRoute: typeof RecruiterWithdrawRoute
+  RecruiterOnboardingRoute: typeof RecruiterOnboardingRoute
   HrIndexRoute: typeof HrIndexRoute
   RecruiterIndexRoute: typeof RecruiterIndexRoute
 }
@@ -845,6 +858,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruiterWithdrawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recruiter/onboarding': {
+      id: '/recruiter/onboarding'
+      path: '/recruiter/onboarding'
+      fullPath: '/recruiter/onboarding'
+      preLoaderRoute: typeof RecruiterOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hr/candidates/$id': {
       id: '/hr/candidates/$id'
       path: '/$id'
@@ -963,6 +983,7 @@ const rootRouteChildren: RootRouteChildren = {
   RecruiterUnlockEarningsRoute: RecruiterUnlockEarningsRoute,
   RecruiterWalletRoute: RecruiterWalletRoute,
   RecruiterWithdrawRoute: RecruiterWithdrawRoute,
+  RecruiterOnboardingRoute: RecruiterOnboardingRoute,
   HrIndexRoute: HrIndexRoute,
   RecruiterIndexRoute: RecruiterIndexRoute,
 }

@@ -69,6 +69,11 @@ public function hrProfile(): HasOne
     return $this->hasOne(HRProfile::class);
 }
 
+public function recruiterProfile(): HasOne
+{
+    return $this->hasOne(RecruiterProfile::class);
+}
+
 public function hrJobs(): HasMany
 {
     return $this->hasMany(HRJob::class, 'hr_id');
@@ -117,6 +122,10 @@ public function hrActivityLogs(): HasMany
     'role',
     'api_token',
 
+    'verified_email',
+    'verified_mobile',
+    'mobile_verified_at',
+
     'company',
     'current_role',
     'target_roles',
@@ -164,6 +173,9 @@ public function hrActivityLogs(): HasMany
 {
     return [
         'email_verified_at' => 'datetime',
+        'mobile_verified_at' => 'datetime',
+        'verified_email' => 'boolean',
+        'verified_mobile' => 'boolean',
         'password' => 'hashed',
 
         'skills' => 'array',

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Recruiter;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\RecruiterOnboardingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -21,16 +22,32 @@ abstract class RecruiterBaseController extends Controller
         return in_array($user->role, ['opportunity_provider', 'admin', 'hr'], true);
     }
 
-    protected function recruiterUser(Request $request): array
+    /**
+     * @return array{0: ?User, 1: ?JsonResponse}
+     */
+    protected function recruiterUser(Request $request, bool $requireOnboarded = true): array
     {
         $user = $this->authUser($request);
 
-        if (!$user) {
+        if (! $user) {
             return [null, $this->unauthorized()];
         }
 
-        if (!$this->ensureRecruiterAccess($user)) {
+        if (! $this->ensureRecruiterAccess($user)) {
             return [null, $this->forbidden('Recruiter access required.')];
+        }
+
+        if ($requireOnboarded && $user->role === 'opportunity_provider') {
+            $onboarding = app(RecruiterOnboardingService::class);
+
+            if (! $onboarding->canAccessDashboard($user)) {
+                return [null, response()->json([
+                    'success' => false,
+                    'message' => 'Complete recruiter onboarding before accessing this feature.',
+                    'code' => 'recruiter_onboarding_required',
+                    'data' => $onboarding->statusPayload($user),
+                ], 403)];
+            }
         }
 
         return [$user, null];
@@ -71,7 +88,7 @@ abstract class RecruiterBaseController extends Controller
 
     protected function mediaUrl(?string $path): ?string
     {
-        if (!$path) {
+        if (! $path) {
             return null;
         }
 

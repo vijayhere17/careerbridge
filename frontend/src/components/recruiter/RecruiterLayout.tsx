@@ -21,6 +21,10 @@ import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { apiFetch, clearAuth, getStoredUser, onAuthChange } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { recruiterService } from "@/services/recruiterOpportunityService";
+import {
+  onboardingRedirectPath,
+  recruiterOnboardingService,
+} from "@/services/recruiterOnboardingService";
 
 const navItems = [
   { to: "/recruiter", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -170,6 +174,23 @@ export function RecruiterLayout({
       return;
     }
 
+    const pathname =
+      typeof window !== "undefined" ? window.location.pathname : "";
+    const isOnboardingRoute = pathname.startsWith("/recruiter/onboarding");
+
+    if (user?.role === "opportunity_provider" && !isOnboardingRoute) {
+      recruiterOnboardingService
+        .status()
+        .then((res) => {
+          if (!res.data.can_access_dashboard) {
+            router.navigate({ to: onboardingRedirectPath(res.data) });
+          }
+        })
+        .catch(() => {
+          router.navigate({ to: "/recruiter/onboarding" });
+        });
+    }
+
     recruiterService
       .dashboard()
       .then((res) => {
@@ -178,7 +199,7 @@ export function RecruiterLayout({
         if (res.data?.user?.profile_photo) setAvatarUrl(res.data.user.profile_photo);
       })
       .catch(() => {
-        /* optional */
+        /* optional — often blocked until onboarding is complete */
       });
 
     recruiterService

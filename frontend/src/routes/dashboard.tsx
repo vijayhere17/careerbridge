@@ -173,7 +173,11 @@ if (a.user.role === "hr") {
 }
 
 if (a.user.role === "opportunity_provider") {
-  router.navigate({ to: "/recruiter" });
+  const recruiterOnboarding = (a as { recruiter_onboarding?: { can_access_dashboard?: boolean } | null })
+    .recruiter_onboarding;
+  router.navigate({
+    to: recruiterOnboarding?.can_access_dashboard ? "/recruiter" : "/recruiter/onboarding",
+  });
   return;
 }
 
