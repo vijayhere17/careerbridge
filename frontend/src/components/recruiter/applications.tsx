@@ -101,6 +101,7 @@ export function ApplicationsPage() {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [rejectTarget, setRejectTarget] = useState<RejectTarget>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const [scheduleTarget, setScheduleTarget] = useState<ApplicationItem | null>(null);
   const [interviewAt, setInterviewAt] = useState("");
   const [interviewLink, setInterviewLink] = useState("");
@@ -190,16 +191,33 @@ export function ApplicationsPage() {
     setSaving(true);
     try {
       if (rejectTarget.type === "single") {
-        await recruiterService.rejectApplication(rejectTarget.application.id);
+        await recruiterService.rejectApplication(
+          rejectTarget.application.id,
+          rejectReason.trim() || undefined,
+        );
         toast.success("Application rejected");
       } else {
         await recruiterService.bulkApplications({ ids: selected, action: "reject" });
         toast.success("Selected applications rejected");
       }
       setRejectTarget(null);
+      setRejectReason("");
       await loadApplications();
     } catch (err) {
       toast.error(apiErrorMessage(err, "Could not reject application"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const hireApplication = async (application: ApplicationItem) => {
+    setSaving(true);
+    try {
+      await recruiterService.hireApplication(application.id);
+      toast.success("Candidate marked as hired");
+      await loadApplications();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not hire candidate"));
     } finally {
       setSaving(false);
     }
@@ -482,6 +500,7 @@ export function ApplicationsPage() {
                           application={application}
                           saving={saving}
                           onShortlist={() => shortlistApplication(application)}
+                          onHire={() => hireApplication(application)}
                           onReject={() => setRejectTarget({ type: "single", application })}
                           onSchedule={() => openScheduleDialog(application)}
                         />
@@ -542,6 +561,7 @@ export function ApplicationsPage() {
                         application={application}
                         saving={saving}
                         onShortlist={() => shortlistApplication(application)}
+                        onHire={() => hireApplication(application)}
                         onReject={() => setRejectTarget({ type: "single", application })}
                         onSchedule={() => openScheduleDialog(application)}
                         mobile
@@ -627,21 +647,60 @@ export function ApplicationsPage() {
         </DialogContent>
       </Dialog>
 
-      <RecruiterConfirmDialog
+      <Dialog
         open={!!rejectTarget}
-        onOpenChange={(open) => !open && setRejectTarget(null)}
-        title={
-          rejectTarget?.type === "bulk" ? "Reject selected applications?" : "Reject application?"
-        }
-        description={
-          rejectTarget?.type === "bulk"
-            ? `This will reject ${selected.length} selected application${selected.length === 1 ? "" : "s"}.`
-            : "This candidate will be marked as rejected."
-        }
-        confirmLabel={saving ? "Rejecting..." : "Reject"}
-        destructive
-        onConfirm={rejectApplications}
-      />
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectTarget(null);
+            setRejectReason("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {rejectTarget?.type === "bulk"
+                ? "Reject selected applications?"
+                : "Reject application?"}
+            </DialogTitle>
+            <DialogDescription>
+              {rejectTarget?.type === "bulk"
+                ? `This will reject ${selected.length} selected application${selected.length === 1 ? "" : "s"}.`
+                : "Optionally add a reason that will be saved with the rejection."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject_reason">Reason (optional)</Label>
+            <Input
+              id="reject_reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Experience mismatch"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setRejectTarget(null);
+                setRejectReason("");
+              }}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={saving}
+              onClick={() => void rejectApplications()}
+            >
+              {saving ? "Rejecting..." : "Reject"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </RecruiterLayout>
   );
 }
@@ -742,6 +801,7 @@ function RowActions({
   application,
   saving,
   onShortlist,
+  onHire,
   onReject,
   onSchedule,
   mobile,
@@ -749,6 +809,7 @@ function RowActions({
   application: ApplicationItem;
   saving: boolean;
   onShortlist: () => void;
+  onHire: () => void;
   onReject: () => void;
   onSchedule: () => void;
   mobile?: boolean;
@@ -756,18 +817,27 @@ function RowActions({
   const resumeUrl = application.resume_url ?? application.candidate?.resume_url ?? null;
 
   return (
-    <div className={mobile ? "mt-4 grid grid-cols-2 gap-2" : "flex justify-end gap-1"}>
+    <div className={mobile ? "mt-4 grid grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-1"}>
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={onShortlist}
-        disabled={saving || application.status === "shortlisted"}
+        disabled={saving || application.status === "shortlisted" || application.status === "hired"}
       >
         <CheckCircle2 className="h-4 w-4" /> Shortlist
       </Button>
       <Button type="button" variant="outline" size="sm" onClick={onSchedule} disabled={saving}>
         <CalendarClock className="h-4 w-4" /> Schedule
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={onHire}
+        disabled={saving || application.status === "hired"}
+      >
+        <Users className="h-4 w-4" /> Hire
       </Button>
       {resumeUrl ? (
         <Button asChild variant="outline" size="sm">

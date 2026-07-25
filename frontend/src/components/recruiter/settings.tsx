@@ -25,26 +25,35 @@ type SettingsProfile = {
 
 type Preferences = {
   email_notifications: boolean;
+  push_notifications: boolean;
   application_alerts: boolean;
   unlock_alerts: boolean;
   withdraw_alerts: boolean;
   weekly_digest: boolean;
+  profile_visibility: boolean;
+  show_contact_publicly: boolean;
 };
 
 const defaultPreferences: Preferences = {
   email_notifications: true,
+  push_notifications: true,
   application_alerts: true,
   unlock_alerts: true,
   withdraw_alerts: true,
   weekly_digest: false,
+  profile_visibility: true,
+  show_contact_publicly: false,
 };
 
 const preferenceRows: Array<[keyof Preferences, string, string]> = [
   ["email_notifications", "Email notifications", "Receive important account and activity emails."],
+  ["push_notifications", "Push notifications", "Show in-app alerts for recruiter activity."],
   ["application_alerts", "Application alerts", "Notify me when candidates apply to my posts."],
   ["unlock_alerts", "Unlock alerts", "Notify me when a candidate contact is unlocked."],
   ["withdraw_alerts", "Withdrawal alerts", "Notify me about withdrawal request status changes."],
   ["weekly_digest", "Weekly digest", "Send a weekly summary of recruiter activity."],
+  ["profile_visibility", "Public company profile", "Allow your company profile to appear publicly."],
+  ["show_contact_publicly", "Show contact publicly", "Display email/phone on public opportunity pages."],
 ];
 
 function booleanPreferences(input: Record<string, unknown> | null | undefined): Preferences {
@@ -52,10 +61,15 @@ function booleanPreferences(input: Record<string, unknown> | null | undefined): 
     email_notifications: Boolean(
       input?.email_notifications ?? defaultPreferences.email_notifications,
     ),
+    push_notifications: Boolean(input?.push_notifications ?? defaultPreferences.push_notifications),
     application_alerts: Boolean(input?.application_alerts ?? defaultPreferences.application_alerts),
     unlock_alerts: Boolean(input?.unlock_alerts ?? defaultPreferences.unlock_alerts),
     withdraw_alerts: Boolean(input?.withdraw_alerts ?? defaultPreferences.withdraw_alerts),
     weekly_digest: Boolean(input?.weekly_digest ?? defaultPreferences.weekly_digest),
+    profile_visibility: Boolean(input?.profile_visibility ?? defaultPreferences.profile_visibility),
+    show_contact_publicly: Boolean(
+      input?.show_contact_publicly ?? defaultPreferences.show_contact_publicly,
+    ),
   };
 }
 

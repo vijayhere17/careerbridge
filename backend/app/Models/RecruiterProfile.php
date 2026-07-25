@@ -26,6 +26,7 @@ class RecruiterProfile extends Model
         'user_id',
         'company_name',
         'company_logo',
+        'cover_image',
         'recruiter_name',
         'designation',
         'about_company',
@@ -71,13 +72,23 @@ class RecruiterProfile extends Model
 
     public function logoUrl(): ?string
     {
-        if (! $this->company_logo) {
+        return $this->mediaUrl($this->company_logo);
+    }
+
+    public function coverUrl(): ?string
+    {
+        return $this->mediaUrl($this->cover_image);
+    }
+
+    public function mediaUrl(?string $path): ?string
+    {
+        if (! $path) {
             return null;
         }
 
-        return str_starts_with($this->company_logo, 'http')
-            ? $this->company_logo
-            : asset('storage/' . ltrim($this->company_logo, '/'));
+        return str_starts_with($path, 'http')
+            ? $path
+            : asset('storage/' . ltrim($path, '/'));
     }
 
     public function isApproved(): bool

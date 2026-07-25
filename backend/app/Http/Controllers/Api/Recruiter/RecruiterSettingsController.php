@@ -89,10 +89,13 @@ class RecruiterSettingsController extends RecruiterBaseController
         $validator = Validator::make($request->all(), [
             'preferences' => 'nullable|array',
             'email_notifications' => 'nullable|boolean',
+            'push_notifications' => 'nullable|boolean',
             'application_alerts' => 'nullable|boolean',
             'unlock_alerts' => 'nullable|boolean',
             'withdraw_alerts' => 'nullable|boolean',
             'weekly_digest' => 'nullable|boolean',
+            'profile_visibility' => 'nullable|boolean',
+            'show_contact_publicly' => 'nullable|boolean',
             'timezone' => 'nullable|string|max:100',
             'date_format' => 'nullable|string|max:50',
             'language' => 'nullable|string|max:20',
@@ -151,10 +154,13 @@ class RecruiterSettingsController extends RecruiterBaseController
     {
         return [
             'email_notifications' => true,
+            'push_notifications' => true,
             'application_alerts' => true,
             'unlock_alerts' => true,
             'withdraw_alerts' => true,
             'weekly_digest' => false,
+            'profile_visibility' => true,
+            'show_contact_publicly' => false,
             'timezone' => config('app.timezone', 'UTC'),
             'date_format' => 'Y-m-d',
             'language' => 'en',

@@ -155,6 +155,16 @@ export function ManagePostsPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [savingAction, setSavingAction] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
+  const [summary, setSummary] = useState<{
+    total?: number;
+    draft?: number;
+    published?: number;
+    closed?: number;
+    archived?: number;
+    paused?: number;
+    views?: number;
+    applications?: number;
+  } | null>(null);
 
   const selectedCount = selectedIds.length;
   const isBusy = savingAction !== null;
@@ -163,14 +173,17 @@ export function ManagePostsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await recruiterService.listOpportunities({
-        page,
-        per_page: PER_PAGE,
-        search: filters.search || undefined,
-        status: filters.status === "all" ? undefined : filters.status,
-        type: filters.type === "all" ? undefined : filters.type,
-        sort: filters.sort,
-      });
+      const [response, summaryRes] = await Promise.all([
+        recruiterService.listOpportunities({
+          page,
+          per_page: PER_PAGE,
+          search: filters.search || undefined,
+          status: filters.status === "all" ? undefined : filters.status,
+          type: filters.type === "all" ? undefined : filters.type,
+          sort: filters.sort,
+        }),
+        recruiterService.opportunitySummary().catch(() => null),
+      ]);
 
       const payload = response.data;
       const nextOpportunities = asList<RecruiterOpportunity>(payload);
@@ -179,6 +192,9 @@ export function ManagePostsPage() {
       setOpportunities(nextOpportunities);
       setLastPage(meta?.last_page ?? 1);
       setTotal(meta?.total ?? nextOpportunities.length);
+      if (summaryRes?.data) {
+        setSummary(summaryRes.data as typeof summary);
+      }
       setSelectedIds((current) =>
         current.filter((id) => nextOpportunities.some((opportunity) => opportunity.id === id)),
       );
@@ -353,6 +369,25 @@ export function ManagePostsPage() {
         </Button>
       }
     >
+      {summary && (
+        <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+          {[
+            ["Total", summary.total],
+            ["Published", summary.published],
+            ["Drafts", summary.draft],
+            ["Closed", summary.closed],
+            ["Paused", summary.paused],
+            ["Views", summary.views],
+            ["Applications", summary.applications],
+          ].map(([label, value]) => (
+            <div key={String(label)} className="rounded-2xl border border-border bg-card p-3 shadow-card">
+              <p className="text-xs text-muted-foreground">{label}</p>
+              <p className="mt-1 font-display text-xl font-bold">{Number(value ?? 0)}</p>
+            </div>
+          ))}
+        </section>
+      )}
+
       <form
         onSubmit={applyFilters}
         className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5"

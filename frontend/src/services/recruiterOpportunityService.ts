@@ -114,6 +114,8 @@ export const recruiterService = {
       `/opportunities${qs(params)}`,
     ),
 
+  opportunitySummary: () => recruiterFetch<RecruiterApiRecord>("/opportunities/summary"),
+
   getOpportunity: (id: number) => recruiterFetch<RecruiterOpportunity>(`/opportunities/${id}`),
 
   publishOpportunity: (payload: Partial<RecruiterOpportunity>) =>
@@ -178,6 +180,9 @@ export const recruiterService = {
       body: JSON.stringify({ reason }),
     }),
 
+  hireApplication: (id: number) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/hire`, { method: "POST" }),
+
   scheduleInterview: (
     id: number,
     payload: { interview_at: string; interview_link?: string; interview_status?: string },
@@ -224,7 +229,9 @@ export const recruiterService = {
   unlockStats: () => recruiterFetch<RecruiterApiRecord>("/unlocks/stats"),
 
   unlockChart: (params: Record<string, string | number | undefined> = {}) =>
-    recruiterFetch<RecruiterApiRecord[]>(`/unlocks/chart${qs(params)}`),
+    recruiterFetch<{ days?: number; chart?: RecruiterApiRecord[] } | RecruiterApiRecord[]>(
+      `/unlocks/chart${qs(params)}`,
+    ),
 
   withdrawSummary: (params: Record<string, string | number | undefined> = {}) =>
     recruiterFetch<RecruiterApiRecord>(`/withdraw${qs(params)}`),
@@ -232,7 +239,9 @@ export const recruiterService = {
   requestWithdraw: (payload: {
     amount: number;
     bank_name: string;
+    account_holder: string;
     account_number: string;
+    ifsc?: string;
     upi?: string;
     remarks?: string;
   }) =>

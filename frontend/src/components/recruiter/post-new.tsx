@@ -19,6 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   ArrowRight,
   Briefcase,
@@ -62,6 +69,7 @@ type OpportunityForm = {
   benefits: string;
   work_mode: WorkMode;
   contact_visibility: ContactVisibility;
+  contact_price: string;
 };
 
 type FormErrors = Partial<Record<keyof OpportunityForm, string>>;
@@ -83,6 +91,7 @@ const emptyForm: OpportunityForm = {
   benefits: "",
   work_mode: "Hybrid",
   contact_visibility: "locked",
+  contact_price: "49",
 };
 
 const opportunityTypes = [
@@ -138,6 +147,9 @@ export function PostNewOpportunity() {
   const [loading, setLoading] = useState(isEdit);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState<"draft" | "publish" | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [autoSaveLabel, setAutoSaveLabel] = useState("");
+  const [draftId, setDraftId] = useState<number | null>(editId);
 
   const loadOpportunity = useCallback(async () => {
     if (!editId) return;
@@ -159,6 +171,28 @@ export function PostNewOpportunity() {
   useEffect(() => {
     void loadOpportunity();
   }, [loadOpportunity]);
+
+  useEffect(() => {
+    if (isEdit || saving || loading) return;
+    if (!form.title.trim() && !form.company_name.trim()) return;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const payload = toPayload(form);
+        if (draftId) {
+          await recruiterService.updateOpportunity(draftId, { ...payload, status: "draft" });
+        } else {
+          const res = await recruiterService.saveDraft(payload);
+          if (res.data?.id) setDraftId(res.data.id);
+        }
+        setAutoSaveLabel(`Draft auto-saved at ${new Date().toLocaleTimeString()}`);
+      } catch {
+        /* silent autosave */
+      }
+    }, 12000);
+
+    return () => window.clearTimeout(timer);
+  }, [form, draftId, isEdit, saving, loading]);
 
   const set = (field: keyof OpportunityForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -189,15 +223,17 @@ export function PostNewOpportunity() {
     const payload = toPayload(form);
     setSaving(mode);
     try {
-      if (isEdit && editId) {
-        await recruiterService.updateOpportunity(editId, {
+      const targetId = editId ?? draftId;
+      if (targetId) {
+        await recruiterService.updateOpportunity(targetId, {
           ...payload,
           status: mode === "publish" ? "published" : "draft",
         });
       } else if (mode === "publish") {
         await recruiterService.publishOpportunity(payload);
       } else {
-        await recruiterService.saveDraft(payload);
+        const res = await recruiterService.saveDraft(payload);
+        if (res.data?.id) setDraftId(res.data.id);
       }
 
       toast.success(mode === "publish" ? "Opportunity published" : "Draft saved");
@@ -252,6 +288,9 @@ export function PostNewOpportunity() {
         <RecruiterErrorState message={loadError} onRetry={() => void loadOpportunity()} />
       ) : (
         <>
+          {autoSaveLabel && (
+            <p className="mb-3 text-xs text-muted-foreground">{autoSaveLabel}</p>
+          )}
           <div className="rounded-2xl border border-border bg-card p-3 shadow-card sm:p-5">
             <ol className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {steps.map((label, index) => (
@@ -550,6 +589,18 @@ export function PostNewOpportunity() {
                         </p>
                       </button>
                     </div>
+                    {form.contact_visibility === "locked" && (
+                      <div className="mt-4 max-w-xs space-y-2">
+                        <Label htmlFor="contact_price">Unlock price (₹)</Label>
+                        <Input
+                          id="contact_price"
+                          type="number"
+                          min={1}
+                          value={form.contact_price}
+                          onChange={(e) => set("contact_price", e.target.value)}
+                        />
+                      </div>
+                    )}
                   </section>
                 </>
               )}
@@ -569,7 +620,7 @@ export function PostNewOpportunity() {
                         {form.location.trim() || "Location"} · {form.work_mode}
                       </p>
                     </div>
-                    <Button type="button" variant="outline" size="sm">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
                       <Eye className="h-4 w-4" /> Live Preview
                     </Button>
                   </div>
@@ -684,6 +735,40 @@ export function PostNewOpportunity() {
               </div>
             </aside>
           </div>
+          <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Opportunity preview</DialogTitle>
+                <DialogDescription>
+                  This is how candidates will see your opportunity.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <span className="rounded-full bg-primary-soft px-2 py-0.5 text-xs font-medium uppercase text-primary">
+                    {previewType?.label ?? "Opportunity"}
+                  </span>
+                  <h3 className="mt-2 font-display text-2xl font-bold">
+                    {form.title.trim() || "Opportunity Title"}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {form.company_name.trim() || "Company"} · {form.location.trim() || "Location"} ·{" "}
+                    {form.work_mode}
+                  </p>
+                </div>
+                <PreviewBlock title="Description" value={form.description} fallback="No description yet." />
+                <PreviewBlock title="Responsibilities" value={form.responsibilities} />
+                <PreviewBlock title="Requirements" value={form.requirements} />
+                <PreviewBlock title="Skills" value={form.skills} />
+                <p className="text-xs text-muted-foreground">
+                  Contact visibility: {form.contact_visibility}
+                  {form.contact_visibility === "locked"
+                    ? ` · Unlock price ₹${form.contact_price || "0"}`
+                    : ""}
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
         </>
       )}
     </RecruiterLayout>
@@ -778,6 +863,8 @@ function toPayload(form: OpportunityForm): Partial<RecruiterOpportunity> {
     benefits: nullableText(form.benefits),
     work_mode: form.work_mode,
     contact_visibility: form.contact_visibility,
+    contact_price:
+      form.contact_visibility === "locked" ? numberOrNull(form.contact_price) : null,
   };
 }
 
@@ -799,6 +886,8 @@ function toFormState(opportunity: RecruiterOpportunity): OpportunityForm {
     benefits: opportunity.benefits ?? "",
     work_mode: normalizeWorkMode(opportunity.work_mode),
     contact_visibility: opportunity.contact_visibility === "public" ? "public" : "locked",
+    contact_price:
+      opportunity.contact_price != null ? String(opportunity.contact_price) : "49",
   };
 }
 

@@ -3,15 +3,19 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowDownToLine,
   ArrowUpRight,
+  BadgeCheck,
   BellDot,
   Briefcase,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Coins,
   Eye,
   FileText,
   ListChecks,
+  Percent,
   Plus,
+  TrendingUp,
   Users,
   Wallet,
   Zap,
@@ -34,6 +38,8 @@ type DashboardApplication = {
   id: number;
   status?: string | null;
   rating?: number | null;
+  interview_at?: string | null;
+  interview_link?: string | null;
   applied_at?: string | null;
   created_at?: string | null;
   candidate?: {
@@ -76,6 +82,21 @@ type DashboardNotification = {
   created_at?: string | null;
 };
 
+type DashboardActivity = {
+  type?: string | null;
+  title?: string | null;
+  description?: string | null;
+  amount?: number | string | null;
+  created_at?: string | null;
+};
+
+type TrendPoint = {
+  date?: string;
+  label?: string;
+  applications?: number;
+  views?: number;
+};
+
 type DashboardData = {
   user?: {
     name?: string | null;
@@ -83,27 +104,51 @@ type DashboardData = {
     current_role?: string | null;
     profile_photo?: string | null;
   } | null;
+  profile_status?: {
+    company_name?: string | null;
+    recruiter_name?: string | null;
+    recruiter_type?: string | null;
+    approval_status?: string | null;
+    profile_completion?: number | string | null;
+    company_logo?: string | null;
+    industry?: string | null;
+  } | null;
   stats?: {
     total_opportunities?: number | string | null;
     published_opportunities?: number | string | null;
     draft_opportunities?: number | string | null;
     closed_opportunities?: number | string | null;
+    open_positions?: number | string | null;
     applications?: number | string | null;
     today_applications?: number | string | null;
     views?: number | string | null;
+    profile_completion?: number | string | null;
     unlock_earnings?: {
       today?: number | string | null;
       month?: number | string | null;
       lifetime?: number | string | null;
+      pending?: number | string | null;
     } | null;
+    contact_unlock_earnings?: number | string | null;
     wallet_balance?: number | string | null;
     pending_withdrawals?: number | string | null;
+    monthly_earnings?: number | string | null;
+    response_rate?: number | string | null;
+    interview_invitations?: number | string | null;
+    pipeline?: Record<string, number | string | null> | null;
   } | null;
+  application_trends?: { days?: number; chart?: TrendPoint[] } | null;
+  opportunity_performance?: RecruiterOpportunity[];
+  most_viewed_opportunity?: RecruiterOpportunity | null;
   recent_applications?: DashboardApplication[];
   recent_posts?: RecruiterOpportunity[];
+  recent_opportunities?: RecruiterOpportunity[];
   recent_earnings?: DashboardEarning[];
+  recent_candidate_unlocks?: DashboardEarning[];
+  upcoming_interviews?: DashboardApplication[];
   notifications?: DashboardNotification[];
   unread_notifications?: number;
+  recent_activity?: DashboardActivity[];
 };
 
 const cardBase = "rounded-2xl border border-border bg-card shadow-card";
@@ -131,6 +176,7 @@ export function RecruiterDashboard() {
   }, [loadDashboard]);
 
   const stats = dashboard?.stats;
+  const profileStatus = dashboard?.profile_status;
   const statCards = useMemo(
     () => [
       {
@@ -139,6 +185,7 @@ export function RecruiterDashboard() {
         detail: "All posts created",
         icon: Briefcase,
         tint: "text-primary bg-primary-soft",
+        to: "/recruiter/manage-posts" as const,
       },
       {
         label: "Published",
@@ -146,6 +193,7 @@ export function RecruiterDashboard() {
         detail: "Live opportunities",
         icon: CheckCircle2,
         tint: "text-secondary bg-secondary-soft",
+        to: "/recruiter/manage-posts" as const,
       },
       {
         label: "Drafts",
@@ -153,6 +201,7 @@ export function RecruiterDashboard() {
         detail: "Saved drafts",
         icon: FileText,
         tint: "text-muted-foreground bg-muted",
+        to: "/recruiter/manage-posts" as const,
       },
       {
         label: "Closed",
@@ -160,6 +209,15 @@ export function RecruiterDashboard() {
         detail: "Closed posts",
         icon: Clock,
         tint: "text-destructive bg-destructive/10",
+        to: "/recruiter/manage-posts" as const,
+      },
+      {
+        label: "Open Positions",
+        value: formatNumber(stats?.open_positions),
+        detail: "Published + paused",
+        icon: Briefcase,
+        tint: "text-primary bg-primary-soft",
+        to: "/recruiter/manage-posts" as const,
       },
       {
         label: "Applications",
@@ -167,13 +225,15 @@ export function RecruiterDashboard() {
         detail: `${formatNumber(stats?.today_applications)} today`,
         icon: Users,
         tint: "text-secondary bg-secondary-soft",
+        to: "/recruiter/applications" as const,
       },
       {
-        label: "Today Applications",
+        label: "Today's Applications",
         value: formatNumber(stats?.today_applications),
         detail: "New today",
         icon: Plus,
         tint: "text-primary bg-primary-soft",
+        to: "/recruiter/applications" as const,
       },
       {
         label: "Views",
@@ -181,13 +241,23 @@ export function RecruiterDashboard() {
         detail: "Total post views",
         icon: Eye,
         tint: "text-accent bg-accent-soft",
+        to: "/recruiter/manage-posts" as const,
       },
       {
-        label: "Unlock Earnings",
-        value: formatCurrency(stats?.unlock_earnings?.today),
+        label: "Profile Completion",
+        value: `${formatNumber(stats?.profile_completion ?? profileStatus?.profile_completion)}%`,
+        detail: "Company profile",
+        icon: BadgeCheck,
+        tint: "text-secondary bg-secondary-soft",
+        to: "/recruiter/profile" as const,
+      },
+      {
+        label: "Contact Unlock Earnings",
+        value: formatCurrency(stats?.contact_unlock_earnings ?? stats?.unlock_earnings?.lifetime),
         detail: `${formatCurrency(stats?.unlock_earnings?.month)} this month`,
         icon: Coins,
         tint: "text-accent bg-accent-soft",
+        to: "/recruiter/unlock-earnings" as const,
       },
       {
         label: "Wallet Balance",
@@ -195,6 +265,7 @@ export function RecruiterDashboard() {
         detail: "Available balance",
         icon: Wallet,
         tint: "text-primary bg-primary-soft",
+        to: "/recruiter/wallet" as const,
       },
       {
         label: "Pending Withdrawals",
@@ -202,22 +273,56 @@ export function RecruiterDashboard() {
         detail: "Awaiting payout",
         icon: ArrowDownToLine,
         tint: "text-muted-foreground bg-muted",
+        to: "/recruiter/withdraw" as const,
+      },
+      {
+        label: "Monthly Earnings",
+        value: formatCurrency(stats?.monthly_earnings ?? stats?.unlock_earnings?.month),
+        detail: "Unlock income this month",
+        icon: TrendingUp,
+        tint: "text-secondary bg-secondary-soft",
+        to: "/recruiter/unlock-earnings" as const,
+      },
+      {
+        label: "Response Rate",
+        value: `${formatNumber(stats?.response_rate)}%`,
+        detail: "Acted applications",
+        icon: Percent,
+        tint: "text-primary bg-primary-soft",
+        to: "/recruiter/applications" as const,
+      },
+      {
+        label: "Interview Invitations",
+        value: formatNumber(stats?.interview_invitations),
+        detail: "In interview stage",
+        icon: CalendarClock,
+        tint: "text-accent bg-accent-soft",
+        to: "/recruiter/applications" as const,
       },
     ],
-    [stats],
+    [stats, profileStatus],
   );
 
   const recentApplications = asList<DashboardApplication>(dashboard?.recent_applications);
-  const recentPosts = asList<RecruiterOpportunity>(dashboard?.recent_posts);
+  const recentPosts = asList<RecruiterOpportunity>(
+    dashboard?.recent_opportunities ?? dashboard?.recent_posts,
+  );
   const recentEarnings = asList<DashboardEarning>(dashboard?.recent_earnings);
+  const recentUnlocks = asList<DashboardEarning>(dashboard?.recent_candidate_unlocks);
+  const upcomingInterviews = asList<DashboardApplication>(dashboard?.upcoming_interviews);
   const notifications = asList<DashboardNotification>(dashboard?.notifications);
+  const recentActivity = asList<DashboardActivity>(dashboard?.recent_activity);
+  const performance = asList<RecruiterOpportunity>(dashboard?.opportunity_performance);
+  const trends = asList<TrendPoint>(dashboard?.application_trends?.chart);
+  const maxTrend = Math.max(...trends.map((t) => Number(t.applications ?? 0)), 1);
   const user = dashboard?.user;
   const initials = getInitials(user?.name ?? "Recruiter");
+  const mostViewed = dashboard?.most_viewed_opportunity;
 
   return (
     <RecruiterLayout
       title="Dashboard"
-      subtitle="Overview of your hiring activity"
+      subtitle="Your recruiter command center"
       actions={
         <Button asChild variant="brand" size="sm">
           <Link to="/recruiter/post-new">
@@ -235,9 +340,9 @@ export function RecruiterDashboard() {
           <section className="relative overflow-hidden rounded-2xl border border-border gradient-hero p-6 shadow-card sm:p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-                {user?.profile_photo ? (
+                {user?.profile_photo || profileStatus?.company_logo ? (
                   <img
-                    src={user.profile_photo}
+                    src={user?.profile_photo || profileStatus?.company_logo || ""}
                     alt=""
                     className="h-14 w-14 rounded-full object-cover ring-2 ring-primary/30"
                   />
@@ -253,11 +358,17 @@ export function RecruiterDashboard() {
                   </h2>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      {user?.company || user?.current_role || "Recruiter workspace"}
+                      {profileStatus?.company_name ||
+                        user?.company ||
+                        user?.current_role ||
+                        "Recruiter workspace"}
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-secondary-soft px-2 py-0.5 text-xs font-medium text-secondary">
-                      <CheckCircle2 className="h-3 w-3" /> API connected
-                    </span>
+                    {profileStatus?.approval_status && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-secondary-soft px-2 py-0.5 text-xs font-medium text-secondary">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {titleCase(String(profileStatus.approval_status))}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -276,7 +387,7 @@ export function RecruiterDashboard() {
             {statCards.map((card) => {
               const Icon = card.icon;
               return (
-                <div key={card.label} className={`${cardBase} p-5`}>
+                <Link key={card.label} to={card.to} className={`${cardBase} p-5 transition-shadow hover:shadow-card-hover`}>
                   <div className="flex items-start justify-between">
                     <span className={`grid h-10 w-10 place-items-center rounded-xl ${card.tint}`}>
                       <Icon className="h-5 w-5" />
@@ -284,22 +395,84 @@ export function RecruiterDashboard() {
                     <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <p className="mt-4 text-sm text-muted-foreground">{card.label}</p>
-                  <p className="mt-1 font-display text-2xl font-bold tracking-tight">
-                    {card.value}
-                  </p>
+                  <p className="mt-1 font-display text-2xl font-bold tracking-tight">{card.value}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{card.detail}</p>
-                </div>
+                </Link>
               );
             })}
           </section>
 
           <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className={`${cardBase} p-5`}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold">Application Trends</h3>
+                <span className="text-xs text-muted-foreground">Last 7 days</span>
+              </div>
+              {trends.length === 0 ? (
+                <InlineEmpty title="No trend data yet" />
+              ) : (
+                <div className="flex h-40 items-end gap-2">
+                  {trends.map((point) => {
+                    const value = Number(point.applications ?? 0);
+                    const height = Math.max(8, Math.round((value / maxTrend) * 100));
+                    return (
+                      <div key={point.date ?? point.label} className="flex flex-1 flex-col items-center gap-2">
+                        <div
+                          className="w-full rounded-t-md bg-primary/80"
+                          style={{ height: `${height}%` }}
+                          title={`${value} applications`}
+                        />
+                        <span className="text-[10px] text-muted-foreground">{point.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className={`${cardBase} p-5`}>
+              <h3 className="mb-4 font-semibold">Recruiter Profile Status</h3>
+              <div className="space-y-3 text-sm">
+                <StatusRow label="Company" value={profileStatus?.company_name || user?.company || "—"} />
+                <StatusRow label="Type" value={titleCase(String(profileStatus?.recruiter_type || "—"))} />
+                <StatusRow label="Industry" value={profileStatus?.industry || "—"} />
+                <StatusRow
+                  label="Completion"
+                  value={`${formatNumber(profileStatus?.profile_completion ?? stats?.profile_completion)}%`}
+                />
+                <StatusRow label="Approval" value={titleCase(String(profileStatus?.approval_status || "—"))} />
+              </div>
+              <Button asChild variant="outline" size="sm" className="mt-4 w-full">
+                <Link to="/recruiter/profile">Edit profile</Link>
+              </Button>
+            </div>
+
+            <div className={`${cardBase} p-5`}>
+              <h3 className="mb-4 font-semibold">Most Viewed Opportunity</h3>
+              {!mostViewed ? (
+                <InlineEmpty title="No viewed opportunities yet" />
+              ) : (
+                <div>
+                  <p className="font-semibold">{mostViewed.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{mostViewed.company_name}</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Views</p>
+                      <p className="font-semibold">{formatNumber(mostViewed.views)}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/50 p-3">
+                      <p className="text-xs text-muted-foreground">Applications</p>
+                      <p className="font-semibold">{formatNumber(mostViewed.applications_count)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className={`${cardBase} lg:col-span-2`}>
-              <SectionHeader
-                title="Recent Applications"
-                link="/recruiter/applications"
-                linkLabel="View all"
-              />
+              <SectionHeader title="Recent Applications" link="/recruiter/applications" linkLabel="View all" />
               {recentApplications.length === 0 ? (
                 <InlineEmpty title="No recent applications" />
               ) : (
@@ -315,7 +488,7 @@ export function RecruiterDashboard() {
                           {application.candidate?.name ?? "Candidate"}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {application.opportunity?.title ?? "Opportunity"} -{" "}
+                          {application.opportunity?.title ?? "Opportunity"} ·{" "}
                           {formatDate(application.applied_at ?? application.created_at)}
                         </p>
                       </div>
@@ -329,9 +502,15 @@ export function RecruiterDashboard() {
             <div className={cardBase}>
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <h3 className="font-semibold">Notifications</h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {dashboard?.unread_notifications ?? 0} unread
-                  <BellDot className="h-4 w-4" />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {dashboard?.unread_notifications ?? 0} unread
+                  </span>
+                  <Button asChild variant="ghost" size="sm">
+                    <Link to="/recruiter/notifications">
+                      <BellDot className="h-4 w-4" />
+                    </Link>
+                  </Button>
                 </div>
               </div>
               {notifications.length === 0 ? (
@@ -365,11 +544,7 @@ export function RecruiterDashboard() {
 
           <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className={`${cardBase} lg:col-span-2`}>
-              <SectionHeader
-                title="Recent Posts"
-                link="/recruiter/manage-posts"
-                linkLabel="Manage"
-              />
+              <SectionHeader title="Recent Opportunities" link="/recruiter/manage-posts" linkLabel="Manage" />
               {recentPosts.length === 0 ? (
                 <InlineEmpty title="No posts yet" />
               ) : (
@@ -382,8 +557,8 @@ export function RecruiterDashboard() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold">{post.title}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {post.company_name || "Company"} - {formatNumber(post.applications_count)}{" "}
-                          apps - {formatNumber(post.views)} views
+                          {post.company_name || "Company"} · {formatNumber(post.applications_count)} apps ·{" "}
+                          {formatNumber(post.views)} views
                         </p>
                       </div>
                       <PostStatusPill status={post.status} />
@@ -427,30 +602,127 @@ export function RecruiterDashboard() {
             </div>
           </section>
 
-          <section className="mt-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              <h3 className="font-semibold">Quick Actions</h3>
+          <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className={cardBase}>
+              <div className="border-b border-border px-5 py-4">
+                <h3 className="font-semibold">Upcoming Interviews</h3>
+              </div>
+              {upcomingInterviews.length === 0 ? (
+                <InlineEmpty title="No upcoming interviews" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {upcomingInterviews.map((item) => (
+                    <li key={item.id} className="px-5 py-3">
+                      <p className="text-sm font-semibold">{item.candidate?.name ?? "Candidate"}</p>
+                      <p className="text-xs text-muted-foreground">{item.opportunity?.title}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatDateTime(item.interview_at)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
-              {quickActions.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <Link
-                    key={action.label}
-                    to={action.to}
-                    className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover"
-                  >
-                    <span className={`grid h-11 w-11 place-items-center rounded-xl ${action.tint}`}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <div>
-                      <p className="text-sm font-semibold">{action.label}</p>
-                      <p className="text-xs text-muted-foreground">{action.description}</p>
-                    </div>
-                  </Link>
-                );
-              })}
+
+            <div className={cardBase}>
+              <div className="border-b border-border px-5 py-4">
+                <h3 className="font-semibold">Opportunity Performance</h3>
+              </div>
+              {performance.length === 0 ? (
+                <InlineEmpty title="No performance data" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {performance.map((item) => (
+                    <li key={item.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{item.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatNumber(item.applications_count)} apps · {formatNumber(item.views)} views
+                        </p>
+                      </div>
+                      <PostStatusPill status={item.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className={cardBase}>
+              <div className="border-b border-border px-5 py-4">
+                <h3 className="font-semibold">Recent Candidate Unlocks</h3>
+              </div>
+              {recentUnlocks.length === 0 ? (
+                <InlineEmpty title="No unlocks yet" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {recentUnlocks.map((item) => (
+                    <li key={item.id} className="px-5 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {item.candidate?.name ?? "Candidate"}
+                          </p>
+                          <p className="truncate text-xs text-muted-foreground">
+                            {item.opportunity?.title ?? "Opportunity"}
+                          </p>
+                        </div>
+                        <span className="text-sm font-semibold">{formatCurrency(item.amount)}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <div className={`${cardBase} lg:col-span-2`}>
+              <div className="border-b border-border px-5 py-4">
+                <h3 className="font-semibold">Recent Activity</h3>
+              </div>
+              {recentActivity.length === 0 ? (
+                <InlineEmpty title="No recent activity" />
+              ) : (
+                <ul className="divide-y divide-border">
+                  {recentActivity.map((item, index) => (
+                    <li key={`${item.type}-${item.created_at}-${index}`} className="px-5 py-3">
+                      <p className="text-sm font-semibold">{item.title ?? "Activity"}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {formatDate(item.created_at)}
+                        {item.amount != null ? ` · ${formatCurrency(item.amount)}` : ""}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-3 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                <h3 className="font-semibold">Quick Actions</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3">
+                {quickActions.map((action) => {
+                  const Icon = action.icon;
+                  return (
+                    <Link
+                      key={action.label}
+                      to={action.to}
+                      className="group flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover"
+                    >
+                      <span className={`grid h-11 w-11 place-items-center rounded-xl ${action.tint}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold">{action.label}</p>
+                        <p className="text-xs text-muted-foreground">{action.description}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </section>
         </>
@@ -508,7 +780,7 @@ function SectionHeader({
   linkLabel,
 }: {
   title: string;
-  link: "/recruiter/applications" | "/recruiter/manage-posts";
+  link: "/recruiter/applications" | "/recruiter/manage-posts" | "/recruiter/notifications";
   linkLabel: string;
 }) {
   return (
@@ -517,6 +789,15 @@ function SectionHeader({
       <Button asChild variant="ghost" size="sm">
         <Link to={link}>{linkLabel}</Link>
       </Button>
+    </div>
+  );
+}
+
+function StatusRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="truncate font-medium">{value}</span>
     </div>
   );
 }
@@ -607,6 +888,18 @@ function formatDate(value?: string | null) {
     day: "numeric",
     month: "short",
     year: "numeric",
+  });
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return "Schedule unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Schedule unavailable";
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 

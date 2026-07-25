@@ -182,6 +182,7 @@ class RecruiterOnboardingService
             'user_id' => $profile->user_id,
             'company_name' => $profile->company_name,
             'company_logo' => $profile->logoUrl(),
+            'cover_image' => $profile->coverUrl(),
             'recruiter_name' => $profile->recruiter_name,
             'designation' => $profile->designation,
             'about_company' => $profile->about_company,

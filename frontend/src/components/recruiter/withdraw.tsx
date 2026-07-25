@@ -27,8 +27,10 @@ import { recruiterService } from "@/services/recruiterOpportunityService";
 type WithdrawSummary = {
   available_balance?: number;
   wallet_balance?: number;
+  current_balance?: number;
   pending?: number;
   withdrawn?: number;
+  minimum_withdraw?: number;
   history?: PaginatedPayload<WithdrawItem> | WithdrawItem[];
 };
 
@@ -62,7 +64,9 @@ const PER_PAGE = 10;
 const emptyForm = {
   amount: "",
   bank_name: "",
+  account_holder: "",
   account_number: "",
+  ifsc: "",
   upi: "",
   remarks: "",
 };
@@ -198,8 +202,17 @@ export function WithdrawPage() {
       nextErrors.bank_name = "Bank name is required.";
     }
 
+    if (!form.account_holder.trim()) {
+      nextErrors.account_holder = "Account holder name is required.";
+    }
+
     if (!form.account_number.trim()) {
       nextErrors.account_number = "Account number is required.";
+    }
+
+    if (!form.ifsc.trim() && !form.upi.trim()) {
+      nextErrors.ifsc = "Provide IFSC or UPI for payout.";
+      nextErrors.upi = "Provide UPI or IFSC for payout.";
     }
 
     setErrors(nextErrors);
@@ -219,7 +232,9 @@ export function WithdrawPage() {
       await recruiterService.requestWithdraw({
         amount: Number(form.amount),
         bank_name: form.bank_name.trim(),
+        account_holder: form.account_holder.trim(),
         account_number: form.account_number.trim(),
+        ifsc: form.ifsc.trim() || undefined,
         upi: form.upi.trim() || undefined,
         remarks: form.remarks.trim() || undefined,
       });
@@ -333,6 +348,19 @@ export function WithdrawPage() {
                   )}
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="account_holder">Account holder</Label>
+                  <Input
+                    id="account_holder"
+                    placeholder="Name as per bank account"
+                    value={form.account_holder}
+                    onChange={(event) => update("account_holder", event.target.value)}
+                    aria-invalid={!!errors.account_holder}
+                  />
+                  {errors.account_holder && (
+                    <p className="text-xs text-destructive">{errors.account_holder}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="account_number">Account number</Label>
                   <Input
                     id="account_number"
@@ -346,13 +374,26 @@ export function WithdrawPage() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="upi">UPI ID (optional)</Label>
+                  <Label htmlFor="ifsc">IFSC</Label>
+                  <Input
+                    id="ifsc"
+                    placeholder="e.g. HDFC0001234"
+                    value={form.ifsc}
+                    onChange={(event) => update("ifsc", event.target.value.toUpperCase())}
+                    aria-invalid={!!errors.ifsc}
+                  />
+                  {errors.ifsc && <p className="text-xs text-destructive">{errors.ifsc}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="upi">UPI ID</Label>
                   <Input
                     id="upi"
                     placeholder="name@bank"
                     value={form.upi}
                     onChange={(event) => update("upi", event.target.value)}
+                    aria-invalid={!!errors.upi}
                   />
+                  {errors.upi && <p className="text-xs text-destructive">{errors.upi}</p>}
                 </div>
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="remarks">Remarks (optional)</Label>

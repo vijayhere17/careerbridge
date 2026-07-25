@@ -36,11 +36,10 @@ class RecruiterApplicationController extends RecruiterBaseController
         }
 
         $opportunityIds = RecruiterOpportunity::where('user_id', $user->id)->pluck('id');
-        $query = RecruiterApplication::with(['candidate', 'opportunity'])
-            ->whereIn('recruiter_opportunity_id', $opportunityIds);
+        $baseQuery = RecruiterApplication::query()->whereIn('recruiter_opportunity_id', $opportunityIds);
 
         if ($search = $request->query('search')) {
-            $query->where(function ($q) use ($search) {
+            $baseQuery->where(function ($q) use ($search) {
                 $q->whereHas('candidate', function ($candidate) use ($search) {
                     $candidate->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
@@ -53,13 +52,20 @@ class RecruiterApplicationController extends RecruiterBaseController
             });
         }
 
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
-        }
-
         $opportunityId = $request->query('opportunity_id', $request->query('recruiter_opportunity_id', $request->query('job_id')));
         if ($opportunityId) {
-            $query->where('recruiter_opportunity_id', $opportunityId);
+            $baseQuery->where('recruiter_opportunity_id', $opportunityId);
+        }
+
+        $statusCounts = [];
+        foreach (self::STATUSES as $statusKey) {
+            $statusCounts[$statusKey] = (clone $baseQuery)->where('status', $statusKey)->count();
+        }
+
+        $query = (clone $baseQuery)->with(['candidate', 'opportunity']);
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
         }
 
         match ($request->query('sort', 'latest')) {
@@ -75,6 +81,7 @@ class RecruiterApplicationController extends RecruiterBaseController
 
         return $this->success($applications, 'Applications retrieved successfully.', 200, [
             'statuses' => self::STATUSES,
+            'status_counts' => $statusCounts,
         ]);
     }
 
@@ -199,6 +206,11 @@ class RecruiterApplicationController extends RecruiterBaseController
 
     public function reject(Request $request, int $id)
     {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
         $validator = Validator::make($request->all(), [
             'reason' => 'nullable|string|max:5000',
             'notes' => 'nullable|string|max:5000',
@@ -214,6 +226,16 @@ class RecruiterApplicationController extends RecruiterBaseController
             'rejected',
             'Application rejected successfully.',
             $request->input('reason', $request->input('notes'))
+        );
+    }
+
+    public function hire(Request $request, int $id)
+    {
+        return $this->statusAction(
+            $request,
+            $id,
+            'hired',
+            'Application marked as hired successfully.'
         );
     }
 
