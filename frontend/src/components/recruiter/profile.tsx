@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
+import { toast } from "sonner";
 import { RecruiterLayout } from "@/components/recruiter/RecruiterLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { apiErrorMessage } from "@/components/recruiter/shared";
 import { apiFetch } from "@/lib/auth";
 import {
   AlertCircle,
@@ -54,6 +56,8 @@ type FormState = {
   hiringFor: string;
 };
 
+type FieldErrors = Partial<Record<keyof FormState | "photo", string>>;
+
 const EMPTY_FORM: FormState = {
   name: "",
   company: "",
@@ -102,6 +106,7 @@ function Field({
   type = "text",
   icon: Icon,
   readOnly,
+  error,
   onChange,
 }: {
   label: string;
@@ -110,6 +115,7 @@ function Field({
   type?: string;
   icon?: React.ComponentType<{ className?: string }>;
   readOnly?: boolean;
+  error?: string;
   onChange: (field: keyof FormState, value: string) => void;
 }) {
   return (
@@ -125,9 +131,11 @@ function Field({
           value={value}
           readOnly={readOnly}
           onChange={(event) => onChange(id, event.target.value)}
+          aria-invalid={!!error}
           className={Icon ? "pl-9" : ""}
         />
       </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -141,6 +149,7 @@ export function RecruiterProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const hiringCategories = useMemo(() => parseList(form.hiringFor), [form.hiringFor]);
   const previewPhoto = photoPreview ?? profile?.profilePhoto;
@@ -152,9 +161,11 @@ export function RecruiterProfilePage() {
       const response = await apiFetch<{ profile: RecruiterProfile }>("/api/profile");
       setProfile(response.profile);
       setForm(toForm(response.profile));
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err?.message ?? "Could not load recruiter profile.");
+      const message = apiErrorMessage(err, "Could not load recruiter profile.");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -177,9 +188,36 @@ export function RecruiterProfilePage() {
 
   const update = (field: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const validate = () => {
+    const nextErrors: FieldErrors = {};
+    if (!form.name.trim()) nextErrors.name = "Recruiter name is required.";
+    if (!form.company.trim()) nextErrors.company = "Company name is required.";
+    if (!form.designation.trim()) nextErrors.designation = "Designation is required.";
+    if (form.phone.trim() && form.phone.trim().length < 8) {
+      nextErrors.phone = "Enter a valid phone number.";
+    }
+    if (form.website.trim() && !/^https?:\/\/.+\..+/.test(form.website.trim())) {
+      nextErrors.website = "Website must start with http:// or https://.";
+    }
+    if (form.linkedin.trim() && !/^https?:\/\/.+/.test(form.linkedin.trim())) {
+      nextErrors.linkedin = "LinkedIn URL must start with http:// or https://.";
+    }
+    if (photo && !["image/png", "image/jpeg", "image/jpg"].includes(photo.type)) {
+      nextErrors.photo = "Upload a PNG or JPG image.";
+    }
+
+    setFieldErrors(nextErrors);
+    const first = Object.values(nextErrors)[0];
+    if (first) toast.error(first);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const saveProfile = async () => {
+    if (!validate()) return;
+
     try {
       setSaving(true);
       setError("");
@@ -210,16 +248,20 @@ export function RecruiterProfilePage() {
         {
           method: "POST",
           body,
-        }
+        },
       );
 
       setProfile(response.profile);
       setForm(toForm(response.profile));
       setPhoto(null);
-      setSuccess(response.message ?? "Recruiter profile updated successfully.");
-    } catch (err: any) {
+      const message = response.message ?? "Recruiter profile updated successfully.";
+      setSuccess(message);
+      toast.success(message);
+    } catch (err) {
       console.error(err);
-      setError(err?.message ?? "Could not save recruiter profile.");
+      const message = apiErrorMessage(err, "Could not save recruiter profile.");
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -275,7 +317,10 @@ export function RecruiterProfilePage() {
                   type="file"
                   accept="image/png,image/jpeg,image/jpg"
                   className="sr-only"
-                  onChange={(event) => setPhoto(event.target.files?.[0] ?? null)}
+                  onChange={(event) => {
+                    setPhoto(event.target.files?.[0] ?? null);
+                    setFieldErrors((current) => ({ ...current, photo: undefined }));
+                  }}
                 />
               </label>
             </div>
@@ -294,7 +339,9 @@ export function RecruiterProfilePage() {
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-display text-xl font-bold">{form.name || "Recruiter name"}</h2>
+                  <h2 className="font-display text-xl font-bold">
+                    {form.name || "Recruiter name"}
+                  </h2>
                   <span className="inline-flex items-center gap-1 rounded-full bg-secondary-soft px-2 py-0.5 text-xs font-medium text-secondary">
                     <CheckCircle2 className="h-3 w-3" /> Opportunity Provider
                   </span>
@@ -320,7 +367,9 @@ export function RecruiterProfilePage() {
                   </div>
                   <div className="rounded-xl bg-muted/50 px-3 py-2">
                     <p className="text-xs text-muted-foreground">Profile</p>
-                    <p className="font-semibold">{form.company && form.name ? "Ready" : "Incomplete"}</p>
+                    <p className="font-semibold">
+                      {form.company && form.name ? "Ready" : "Incomplete"}
+                    </p>
                   </div>
                 </div>
               </>
@@ -333,16 +382,70 @@ export function RecruiterProfilePage() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-card lg:col-span-2">
           <h3 className="font-semibold">Company details</h3>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Company Name" id="company" value={form.company} icon={Building2} onChange={update} />
-            <Field label="Recruiter Name" id="name" value={form.name} onChange={update} />
-            <Field label="Designation" id="designation" value={form.designation} onChange={update} />
+            <Field
+              label="Company Name"
+              id="company"
+              value={form.company}
+              icon={Building2}
+              error={fieldErrors.company}
+              onChange={update}
+            />
+            <Field
+              label="Recruiter Name"
+              id="name"
+              value={form.name}
+              error={fieldErrors.name}
+              onChange={update}
+            />
+            <Field
+              label="Designation"
+              id="designation"
+              value={form.designation}
+              error={fieldErrors.designation}
+              onChange={update}
+            />
             <Field label="Industry" id="industry" value={form.industry} onChange={update} />
-            <Field label="Location" id="location" value={form.location} icon={MapPin} onChange={update} />
-            <Field label="Email" id="email" type="email" value={form.email} icon={Mail} readOnly onChange={update} />
-            <Field label="Phone" id="phone" value={form.phone} icon={Phone} onChange={update} />
-            <Field label="Website" id="website" value={form.website} icon={Globe} onChange={update} />
+            <Field
+              label="Location"
+              id="location"
+              value={form.location}
+              icon={MapPin}
+              onChange={update}
+            />
+            <Field
+              label="Email"
+              id="email"
+              type="email"
+              value={form.email}
+              icon={Mail}
+              readOnly
+              onChange={update}
+            />
+            <Field
+              label="Phone"
+              id="phone"
+              value={form.phone}
+              icon={Phone}
+              error={fieldErrors.phone}
+              onChange={update}
+            />
+            <Field
+              label="Website"
+              id="website"
+              value={form.website}
+              icon={Globe}
+              error={fieldErrors.website}
+              onChange={update}
+            />
             <div className="sm:col-span-2">
-              <Field label="LinkedIn" id="linkedin" value={form.linkedin} icon={Linkedin} onChange={update} />
+              <Field
+                label="LinkedIn"
+                id="linkedin"
+                value={form.linkedin}
+                icon={Linkedin}
+                error={fieldErrors.linkedin}
+                onChange={update}
+              />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Company Description</Label>
@@ -354,15 +457,16 @@ export function RecruiterProfilePage() {
                 placeholder="Tell candidates about your company, hiring process, culture and roles."
               />
             </div>
+            {fieldErrors.photo && (
+              <p className="text-xs text-destructive sm:col-span-2">{fieldErrors.photo}</p>
+            )}
           </div>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
             <h3 className="font-semibold">Hiring Categories</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Separate categories with commas.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Separate categories with commas.</p>
             <Textarea
               className="mt-3"
               rows={4}

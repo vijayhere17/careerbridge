@@ -133,7 +133,13 @@ function SignupPage() {
     setError("");
     setSaving(true);
     try {
-      const r = await apiFetch<{ user: AuthUser }>("/api/auth/select-role", {
+      const r = await apiFetch<{
+        user: AuthUser;
+        recruiter_onboarding?: {
+          can_access_dashboard?: boolean;
+          next_step?: string;
+        } | null;
+      }>("/api/auth/select-role", {
         method: "POST",
         body: JSON.stringify({ role: selectedRole }),
       });
@@ -143,7 +149,7 @@ function SignupPage() {
         selectedRole === "hr"
           ? "/hr"
           : selectedRole === "opportunity_provider"
-            ? "/recruiter"
+            ? "/recruiter/onboarding"
             : "/dashboard";
       router.navigate({ to: redirectTo });
     } catch (err: any) {

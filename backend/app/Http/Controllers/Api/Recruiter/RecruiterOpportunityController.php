@@ -2,422 +2,394 @@
 
 namespace App\Http\Controllers\Api\Recruiter;
 
-use App\Http\Controllers\Controller;
 use App\Models\RecruiterOpportunity;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
-class RecruiterOpportunityController extends Controller
+class RecruiterOpportunityController extends RecruiterBaseController
 {
-    /**
-     * Authenticate using API Token
-     */
-    private function authUser(Request $request)
-    {
-        $token = $request->bearerToken()
-            ?: $request->header('X-API-TOKEN');
-
-        return $token
-            ? User::where('api_token', $token)->first()
-            : null;
-    }
-
-    /**
-     * List Recruiter's Opportunities
-     */
     public function index(Request $request)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
         }
 
-        $opportunities = RecruiterOpportunity::where('user_id', $user->id)
-            ->latest()
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'count' => $opportunities->count(),
-            'data' => $opportunities
+        $validator = Validator::make($request->query(), [
+            'search' => 'nullable|string|max:255',
+            'status' => 'nullable|in:draft,published,closed,archived,paused',
+            'type' => 'nullable|string|max:100',
+            'opportunity_type' => 'nullable|string|max:100',
+            'sort' => 'nullable|in:latest,oldest,title,applications,views,deadline,salary',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
         ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $query = RecruiterOpportunity::where('user_id', $user->id)
+            ->withCount(['applications', 'unlocks']);
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('skills', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status = $request->query('status')) {
+            $query->where('status', $status);
+        }
+
+        if ($type = $request->query('type', $request->query('opportunity_type'))) {
+            $query->where('opportunity_type', $type);
+        }
+
+        match ($request->query('sort', 'latest')) {
+            'oldest' => $query->oldest(),
+            'title' => $query->orderBy('title'),
+            'applications' => $query->orderByDesc('applications_count'),
+            'views' => $query->orderByDesc('views'),
+            'deadline' => $query->orderByRaw('application_deadline IS NULL, application_deadline ASC'),
+            'salary' => $query->orderByDesc('salary_max'),
+            default => $query->latest(),
+        };
+
+        $opportunities = $query->paginate(min((int) $request->query('per_page', 12), 100));
+        $opportunities->getCollection()->transform(fn (RecruiterOpportunity $opportunity) => $this->transform($opportunity));
+
+        return $this->success($opportunities, 'Opportunities retrieved successfully.');
     }
 
-    /**
-     * Publish Opportunity
-     */
     public function store(Request $request)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
-        }
-
-        $validator = Validator::make($request->all(), [
-
-            'opportunity_type' => 'required|string',
-
-            'title' => 'required|string|max:255',
-
-            'company_name' => 'required|string|max:255',
-
-            'location' => 'nullable|string|max:255',
-
-            'employment_type' => 'nullable|string|max:100',
-
-            'experience_level' => 'nullable|string|max:100',
-
-            'salary_min' => 'nullable|numeric',
-
-            'salary_max' => 'nullable|numeric',
-
-            'application_deadline' => 'nullable|date',
-
-            'skills' => 'nullable|string',
-
-            'description' => 'nullable|string',
-
-            'responsibilities' => 'nullable|string',
-
-            'requirements' => 'nullable|string',
-
-            'benefits' => 'nullable|string',
-
-            'work_mode' => 'nullable|in:Remote,Hybrid,Office',
-
-            'contact_visibility' => 'nullable|in:public,locked',
-
-        ]);
-
-        if ($validator->fails()) {
-
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-
-        }
-
-        $opportunity = RecruiterOpportunity::create([
-
-            'user_id' => $user->id,
-
-            'opportunity_type' => $request->opportunity_type,
-
-            'title' => $request->title,
-
-            'company_name' => $request->company_name,
-
-            'location' => $request->location,
-
-            'employment_type' => $request->employment_type,
-
-            'experience_level' => $request->experience_level,
-
-            'salary_min' => $request->salary_min,
-
-            'salary_max' => $request->salary_max,
-
-            'application_deadline' => $request->application_deadline,
-
-            'skills' => $request->skills,
-
-            'description' => $request->description,
-
-            'responsibilities' => $request->responsibilities,
-
-            'requirements' => $request->requirements,
-
-            'benefits' => $request->benefits,
-
-            'work_mode' => $request->work_mode ?? 'Hybrid',
-
-            'contact_visibility' => $request->contact_visibility ?? 'locked',
-
-            'status' => 'published',
-
-            'views' => 0,
-
-            'applications_count' => 0,
-
-        ]);
-
-        return response()->json([
-
-            'success' => true,
-
-            'message' => 'Opportunity published successfully.',
-
-            'data' => $opportunity
-
-        ], 201);
+        return $this->createOpportunity($request, 'published', 'Opportunity published successfully.');
     }
 
-    /**
-     * Save Draft
-     */
     public function saveDraft(Request $request)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ],401);
-
-        }
-
-        $opportunity = RecruiterOpportunity::create([
-
-            'user_id' => $user->id,
-
-            'opportunity_type' => $request->opportunity_type,
-
-            'title' => $request->title,
-
-            'company_name' => $request->company_name,
-
-            'location' => $request->location,
-
-            'employment_type' => $request->employment_type,
-
-            'experience_level' => $request->experience_level,
-
-            'salary_min' => $request->salary_min,
-
-            'salary_max' => $request->salary_max,
-
-            'application_deadline' => $request->application_deadline,
-
-            'skills' => $request->skills,
-
-            'description' => $request->description,
-
-            'responsibilities' => $request->responsibilities,
-
-            'requirements' => $request->requirements,
-
-            'benefits' => $request->benefits,
-
-            'work_mode' => $request->work_mode ?? 'Hybrid',
-
-            'contact_visibility' => $request->contact_visibility ?? 'locked',
-
-            'status' => 'draft',
-
-        ]);
-
-        return response()->json([
-
-            'success' => true,
-
-            'message' => 'Draft saved successfully.',
-
-            'data' => $opportunity
-
-        ]);
-
+        return $this->createOpportunity($request, 'draft', 'Draft saved successfully.');
     }
 
-        /**
-     * Show Single Opportunity
-     */
-    public function show(Request $request, $id)
+    public function show(Request $request, int $id)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
         }
 
         $opportunity = RecruiterOpportunity::where('user_id', $user->id)
+            ->withCount(['applications', 'unlocks'])
+            ->with(['applications.candidate'])
             ->find($id);
 
         if (!$opportunity) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Opportunity not found.'
-            ], 404);
+            return $this->notFound('Opportunity not found.');
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => $opportunity
-        ]);
+        return $this->success($this->transform($opportunity, true), 'Opportunity retrieved successfully.');
     }
 
-    /**
-     * Update Opportunity
-     */
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
         }
 
-        $opportunity = RecruiterOpportunity::where('user_id', $user->id)
-            ->find($id);
-
+        $opportunity = $this->findOwned($user->id, $id);
         if (!$opportunity) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Opportunity not found.'
-            ], 404);
+            return $this->notFound('Opportunity not found.');
         }
 
-        $validator = Validator::make($request->all(), [
-
-            'opportunity_type' => 'required|string',
-
-            'title' => 'required|string|max:255',
-
-            'company_name' => 'required|string|max:255',
-
-            'location' => 'nullable|string|max:255',
-
-            'employment_type' => 'nullable|string|max:100',
-
-            'experience_level' => 'nullable|string|max:100',
-
-            'salary_min' => 'nullable|numeric',
-
-            'salary_max' => 'nullable|numeric',
-
-            'application_deadline' => 'nullable|date',
-
-            'skills' => 'nullable|string',
-
-            'description' => 'nullable|string',
-
-            'responsibilities' => 'nullable|string',
-
-            'requirements' => 'nullable|string',
-
-            'benefits' => 'nullable|string',
-
-            'work_mode' => 'nullable|in:Remote,Hybrid,Office',
-
-            'contact_visibility' => 'nullable|in:public,locked',
-
-            'status' => 'nullable|in:draft,published,closed',
-
-        ]);
-
+        $validator = Validator::make($request->all(), $this->rules(false));
         if ($validator->fails()) {
-
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-
+            return $this->validationError($validator->errors());
         }
 
-        $opportunity->update([
+        $data = $validator->validated();
+        $status = $data['status'] ?? null;
+        unset($data['status']);
 
-            'opportunity_type' => $request->opportunity_type,
+        $opportunity->fill($data)->save();
 
-            'title' => $request->title,
+        if ($status) {
+            $this->applyStatus($opportunity, $status);
+        }
 
-            'company_name' => $request->company_name,
-
-            'location' => $request->location,
-
-            'employment_type' => $request->employment_type,
-
-            'experience_level' => $request->experience_level,
-
-            'salary_min' => $request->salary_min,
-
-            'salary_max' => $request->salary_max,
-
-            'application_deadline' => $request->application_deadline,
-
-            'skills' => $request->skills,
-
-            'description' => $request->description,
-
-            'responsibilities' => $request->responsibilities,
-
-            'requirements' => $request->requirements,
-
-            'benefits' => $request->benefits,
-
-            'work_mode' => $request->work_mode,
-
-            'contact_visibility' => $request->contact_visibility,
-
-            'status' => $request->status ?? $opportunity->status,
-
-        ]);
-
-        return response()->json([
-
-            'success' => true,
-
-            'message' => 'Opportunity updated successfully.',
-
-            'data' => $opportunity->fresh()
-
-        ]);
-
+        return $this->success(
+            $this->transform($opportunity->fresh()->loadCount(['applications', 'unlocks'])),
+            'Opportunity updated successfully.'
+        );
     }
 
-    /**
-     * Delete Opportunity
-     */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id)
     {
-        $user = $this->authUser($request);
-
-        if (!$user) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized.'
-            ], 401);
-
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
         }
 
-        $opportunity = RecruiterOpportunity::where('user_id', $user->id)
-            ->find($id);
-
+        $opportunity = $this->findOwned($user->id, $id);
         if (!$opportunity) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Opportunity not found.'
-            ], 404);
-
+            return $this->notFound('Opportunity not found.');
         }
 
         $opportunity->delete();
 
-        return response()->json([
+        return $this->success(null, 'Opportunity deleted successfully.');
+    }
 
-            'success' => true,
+    public function close(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'close', 'Opportunity closed successfully.');
+    }
 
-            'message' => 'Opportunity deleted successfully.'
+    public function publish(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'publish', 'Opportunity published successfully.');
+    }
 
+    public function draft(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'draft', 'Opportunity moved to draft.');
+    }
+
+    public function archive(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'archive', 'Opportunity archived successfully.');
+    }
+
+    public function pause(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'pause', 'Opportunity paused successfully.');
+    }
+
+    public function reopen(Request $request, int $id)
+    {
+        return $this->transition($request, $id, 'publish', 'Opportunity reopened successfully.');
+    }
+
+    public function duplicate(Request $request, int $id)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $opportunity = $this->findOwned($user->id, $id);
+        if (!$opportunity) {
+            return $this->notFound('Opportunity not found.');
+        }
+
+        $copy = $opportunity->duplicateFor($user->id)->loadCount(['applications', 'unlocks']);
+
+        return $this->success($this->transform($copy), 'Opportunity duplicated successfully.', 201);
+    }
+
+    public function bulk(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|distinct',
+            'action' => 'required|in:close,reopen,archive,publish,draft,pause,delete,duplicate',
         ]);
 
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $opportunities = RecruiterOpportunity::where('user_id', $user->id)
+            ->whereIn('id', $request->input('ids'))
+            ->get();
+
+        $updated = 0;
+        $duplicated = 0;
+
+        DB::transaction(function () use ($opportunities, $request, $user, &$updated, &$duplicated) {
+            foreach ($opportunities as $opportunity) {
+                match ($request->input('action')) {
+                    'close' => $opportunity->close(),
+                    'reopen', 'publish' => $opportunity->publish(),
+                    'draft' => $opportunity->draft(),
+                    'archive' => $opportunity->archive(),
+                    'pause' => $opportunity->pause(),
+                    'delete' => $opportunity->delete(),
+                    'duplicate' => $opportunity->duplicateFor($user->id),
+                };
+
+                if ($request->input('action') === 'duplicate') {
+                    $duplicated++;
+                } else {
+                    $updated++;
+                }
+            }
+        });
+
+        return $this->success([
+            'matched' => $opportunities->count(),
+            'updated' => $updated,
+            'duplicated' => $duplicated,
+        ], 'Bulk action completed successfully.');
+    }
+
+    private function createOpportunity(Request $request, string $status, string $message)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), $this->rules(true, $status === 'draft'));
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $data = $validator->validated();
+
+        $opportunity = RecruiterOpportunity::create(array_merge($data, [
+            'user_id' => $user->id,
+            'opportunity_type' => $data['opportunity_type'] ?? 'job',
+            'title' => $data['title'] ?? 'Untitled Draft',
+            'company_name' => $data['company_name'] ?? ($user->company ?: 'Company'),
+            'work_mode' => $data['work_mode'] ?? 'Hybrid',
+            'contact_visibility' => $data['contact_visibility'] ?? 'locked',
+            'status' => $status,
+            'views' => 0,
+            'applications_count' => 0,
+            'unlocks_count' => 0,
+            'published_at' => $status === 'published' ? now() : null,
+        ]));
+
+        return $this->success(
+            $this->transform($opportunity->loadCount(['applications', 'unlocks'])),
+            $message,
+            201
+        );
+    }
+
+    private function transition(Request $request, int $id, string $action, string $message)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $opportunity = $this->findOwned($user->id, $id);
+        if (!$opportunity) {
+            return $this->notFound('Opportunity not found.');
+        }
+
+        $opportunity->{$action}();
+
+        return $this->success(
+            $this->transform($opportunity->fresh()->loadCount(['applications', 'unlocks'])),
+            $message
+        );
+    }
+
+    private function findOwned(int $userId, int $id): ?RecruiterOpportunity
+    {
+        return RecruiterOpportunity::where('user_id', $userId)->find($id);
+    }
+
+    private function applyStatus(RecruiterOpportunity $opportunity, string $status): void
+    {
+        match ($status) {
+            'published' => $opportunity->publish(),
+            'draft' => $opportunity->draft(),
+            'closed' => $opportunity->close(),
+            'archived' => $opportunity->archive(),
+            'paused' => $opportunity->pause(),
+        };
+    }
+
+    private function rules(bool $creating = true, bool $draft = false): array
+    {
+        $required = $creating ? 'required' : 'sometimes';
+        $draftable = $draft ? 'nullable' : $required;
+
+        return [
+            'opportunity_type' => "{$draftable}|string|max:100",
+            'title' => "{$draftable}|string|max:255",
+            'company_name' => "{$draftable}|string|max:255",
+            'location' => 'nullable|string|max:255',
+            'employment_type' => 'nullable|string|max:100',
+            'experience_level' => 'nullable|string|max:100',
+            'salary_min' => 'nullable|numeric|min:0',
+            'salary_max' => 'nullable|numeric|min:0',
+            'application_deadline' => 'nullable|date',
+            'skills' => 'nullable|string',
+            'description' => 'nullable|string',
+            'responsibilities' => 'nullable|string',
+            'requirements' => 'nullable|string',
+            'benefits' => 'nullable|string',
+            'work_mode' => 'nullable|in:Remote,Hybrid,Office',
+            'contact_visibility' => 'nullable|in:public,locked',
+            'contact_price' => 'nullable|numeric|min:0',
+            'status' => 'nullable|in:draft,published,closed,archived,paused',
+        ];
+    }
+
+    private function transform(RecruiterOpportunity $opportunity, bool $detailed = false): array
+    {
+        $payload = [
+            'id' => $opportunity->id,
+            'user_id' => $opportunity->user_id,
+            'duplicated_from_id' => $opportunity->duplicated_from_id,
+            'opportunity_type' => $opportunity->opportunity_type,
+            'title' => $opportunity->title,
+            'company_name' => $opportunity->company_name,
+            'location' => $opportunity->location,
+            'employment_type' => $opportunity->employment_type,
+            'experience_level' => $opportunity->experience_level,
+            'salary_min' => $opportunity->salary_min !== null ? (float) $opportunity->salary_min : null,
+            'salary_max' => $opportunity->salary_max !== null ? (float) $opportunity->salary_max : null,
+            'application_deadline' => $opportunity->application_deadline,
+            'skills' => $opportunity->skills,
+            'description' => $opportunity->description,
+            'responsibilities' => $opportunity->responsibilities,
+            'requirements' => $opportunity->requirements,
+            'benefits' => $opportunity->benefits,
+            'work_mode' => $opportunity->work_mode,
+            'contact_visibility' => $opportunity->contact_visibility,
+            'contact_price' => $opportunity->contact_price !== null ? (float) $opportunity->contact_price : null,
+            'status' => $opportunity->status,
+            'views' => (int) $opportunity->views,
+            'applications_count' => (int) $opportunity->applications_count,
+            'unlocks_count' => (int) $opportunity->unlocks_count,
+            'published_at' => $opportunity->published_at,
+            'closed_at' => $opportunity->closed_at,
+            'archived_at' => $opportunity->archived_at,
+            'created_at' => $opportunity->created_at,
+            'updated_at' => $opportunity->updated_at,
+        ];
+
+        if ($detailed && $opportunity->relationLoaded('applications')) {
+            $payload['applications'] = $opportunity->applications->map(fn ($application) => [
+                'id' => $application->id,
+                'status' => $application->status,
+                'rating' => $application->rating,
+                'applied_at' => $application->applied_at,
+                'candidate' => $application->candidate ? [
+                    'id' => $application->candidate->id,
+                    'name' => $application->candidate->name,
+                    'email' => $application->candidate->email,
+                    'profile_photo' => $this->mediaUrl($application->candidate->profile_photo),
+                ] : null,
+            ])->values();
+        }
+
+        return $payload;
     }
 }
