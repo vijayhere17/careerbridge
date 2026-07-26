@@ -1,8 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AdminRecruitersPage } from "@/components/admin/Recruiters";
+import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin/recruiters")({
-  component: AdminRecruitersPage,
+  component: () => <Outlet />,
   validateSearch: (search: Record<string, unknown>) => ({
     status: typeof search.status === "string" ? search.status : undefined,
     type: typeof search.type === "string" ? search.type : undefined,
