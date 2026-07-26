@@ -30,7 +30,7 @@ import {
   type RecruiterType,
 } from "@/services/recruiterOnboardingService";
 
-type UiStep = "verification" | "profile" | "type" | "pending" | "rejected";
+type UiStep = "verification" | "profile" | "type" | "pending" | "rejected" | "changes_requested" | "suspended";
 
 const PROFILE_SECTIONS = ["Company", "Contact", "Address", "Social & Legal"] as const;
 
@@ -167,7 +167,9 @@ function StepBar({ current }: { current: number }) {
 }
 
 function resolveUiStep(status: RecruiterOnboardingStatus, queryStep?: string | null): UiStep {
+  if (queryStep === "suspended" || status.next_step === "suspended") return "suspended";
   if (queryStep === "rejected" || status.next_step === "rejected") return "rejected";
+  if (queryStep === "changes" || status.next_step === "changes_requested") return "changes_requested";
   if (queryStep === "pending" || status.next_step === "pending_approval") return "pending";
   if (queryStep === "type" || status.next_step === "type") return "type";
   if (queryStep === "profile" || status.next_step === "profile") return "profile";
@@ -185,6 +187,8 @@ function stepIndex(step: UiStep): number {
       return 2;
     case "pending":
     case "rejected":
+    case "changes_requested":
+    case "suspended":
       return 3;
   }
 }
@@ -875,13 +879,19 @@ export function RecruiterOnboardingPage() {
               <div className="text-center">
                 <h1 className="font-display text-2xl font-bold tracking-tight">Profile rejected</h1>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Update your profile based on admin remarks and resubmit.
+                  Update your profile based on admin feedback and resubmit. Dashboard access stays locked until approval.
                 </p>
               </div>
-              {status.admin_remarks && (
+              {(status.rejection_reason || status.admin_remarks) && (
                 <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm">
-                  <p className="font-semibold text-destructive">Admin remarks</p>
-                  <p className="mt-1 text-muted-foreground">{status.admin_remarks}</p>
+                  <p className="font-semibold text-destructive">Reason</p>
+                  <p className="mt-1 text-muted-foreground">{status.rejection_reason || status.admin_remarks}</p>
+                </div>
+              )}
+              {status.required_changes && (
+                <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+                  <p className="font-semibold">Required changes</p>
+                  <p className="mt-1 text-muted-foreground">{status.required_changes}</p>
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
@@ -899,6 +909,70 @@ export function RecruiterOnboardingPage() {
                   {saving ? "Resubmitting…" : "Resubmit for approval"}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {uiStep === "changes_requested" && status && (
+            <div className="space-y-5">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-amber-500/10">
+                <AlertTriangle className="h-7 w-7 text-amber-600" />
+              </div>
+              <div className="text-center">
+                <h1 className="font-display text-2xl font-bold tracking-tight">Changes requested</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  An admin asked for updates before approval. Edit your profile and resubmit.
+                </p>
+              </div>
+              {(status.rejection_reason || status.admin_remarks) && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm">
+                  <p className="font-semibold text-amber-700 dark:text-amber-300">Reason</p>
+                  <p className="mt-1 text-muted-foreground">{status.rejection_reason || status.admin_remarks}</p>
+                </div>
+              )}
+              {status.required_changes && (
+                <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm">
+                  <p className="font-semibold">Required changes</p>
+                  <p className="mt-1 text-muted-foreground">{status.required_changes}</p>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setUiStep("profile");
+                    setProfileSection(0);
+                  }}
+                >
+                  Edit profile
+                </Button>
+                <Button type="button" variant="brand" disabled={saving} onClick={resubmit}>
+                  {saving ? "Resubmitting…" : "Resubmit for approval"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {uiStep === "suspended" && status && (
+            <div className="space-y-5 text-center">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-500/10">
+                <AlertTriangle className="h-7 w-7 text-slate-600" />
+              </div>
+              <div>
+                <h1 className="font-display text-2xl font-bold tracking-tight">Account suspended</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Your recruiter account is suspended. Dashboard access is unavailable until an admin reactivates it.
+                </p>
+              </div>
+              {(status.admin_remarks || status.rejection_reason) && (
+                <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-left text-sm">
+                  <p className="font-semibold">Admin note</p>
+                  <p className="mt-1 text-muted-foreground">{status.admin_remarks || status.rejection_reason}</p>
+                </div>
+              )}
+              <Button type="button" variant="outline" disabled={saving} onClick={load}>
+                <RefreshCw className="mr-1.5 h-4 w-4" /> Check status
+              </Button>
             </div>
           )}
 

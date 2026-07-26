@@ -67,6 +67,13 @@ class RecruiterOnboardingService
         $profile = $profile ?? $this->ensureProfile($user);
         $profile->recalculateCompletion();
 
+        if ($profile->isSuspended()) {
+            $profile->onboarding_step = 'suspended';
+            $profile->save();
+
+            return $profile->fresh();
+        }
+
         // Already-approved recruiters keep dashboard access (including grandfathered accounts).
         if ($profile->isApproved() && $profile->hasSelectedType() && $this->isFullyVerified($user)) {
             $profile->onboarding_step = 'complete';
@@ -82,7 +89,11 @@ class RecruiterOnboardingService
         } elseif (! $profile->hasSelectedType()) {
             $profile->onboarding_step = 'type';
         } elseif ($this->requiresAdminApproval() && ! $profile->isApproved()) {
-            $profile->onboarding_step = $profile->isRejected() ? 'rejected' : 'pending_approval';
+            $profile->onboarding_step = match (true) {
+                $profile->isRejected() => 'rejected',
+                $profile->isChangesRequested() => 'changes_requested',
+                default => 'pending_approval',
+            };
         } else {
             if (! $this->requiresAdminApproval() && $profile->isPending()) {
                 $profile->approval_status = RecruiterProfile::APPROVAL_APPROVED;
@@ -108,6 +119,10 @@ class RecruiterOnboardingService
 
         $profile = $this->ensureProfile($user);
         $profile = $this->refreshOnboardingStep($user, $profile);
+
+        if ($profile->isSuspended()) {
+            return false;
+        }
 
         if ($profile->isApproved() && $profile->onboarding_step === 'complete') {
             return true;
@@ -150,10 +165,12 @@ class RecruiterOnboardingService
         $canAccess = $this->canAccessDashboard($user);
 
         $nextStep = match (true) {
+            $profile->isSuspended() => 'suspended',
+            $requireApproval && $profile->isRejected() => 'rejected',
+            $requireApproval && $profile->isChangesRequested() => 'changes_requested',
             ! $emailVerified || ! $mobileVerified => 'verification',
             ! $profile->hasCompletedProfile() => 'profile',
             ! $profile->hasSelectedType() => 'type',
-            $requireApproval && $profile->isRejected() => 'rejected',
             $requireApproval && ! $profile->isApproved() => 'pending_approval',
             default => 'complete',
         };
@@ -168,6 +185,8 @@ class RecruiterOnboardingService
             'recruiter_type' => $profile->recruiter_type,
             'approval_status' => $profile->approval_status,
             'admin_remarks' => $profile->admin_remarks,
+            'rejection_reason' => $profile->rejection_reason,
+            'required_changes' => $profile->required_changes,
             'require_admin_approval' => $requireApproval,
             'profile_completion' => $profile->profile_completion,
             'onboarding_step' => $profile->onboarding_step,
@@ -213,10 +232,13 @@ class RecruiterOnboardingService
             'recruiter_type' => $profile->recruiter_type,
             'approval_status' => $profile->approval_status,
             'admin_remarks' => $profile->admin_remarks,
+            'rejection_reason' => $profile->rejection_reason,
+            'required_changes' => $profile->required_changes,
             'profile_completion' => $profile->profile_completion,
             'onboarding_step' => $profile->onboarding_step,
             'submitted_at' => $profile->submitted_at?->toIso8601String(),
             'reviewed_at' => $profile->reviewed_at?->toIso8601String(),
+            'location' => $profile->locationLabel(),
         ];
     }
 }

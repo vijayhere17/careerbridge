@@ -19,7 +19,7 @@ abstract class RecruiterBaseController extends Controller
 
     protected function ensureRecruiterAccess(User $user): bool
     {
-        return in_array($user->role, ['opportunity_provider', 'admin', 'hr'], true);
+        return in_array($user->role, ['opportunity_provider', 'admin'], true);
     }
 
     /**

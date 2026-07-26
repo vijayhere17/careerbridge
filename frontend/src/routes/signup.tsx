@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import {
-  Briefcase, GraduationCap, ShieldCheck, UserPlus, UsersRound, Building2,
+  Briefcase, GraduationCap, UserPlus, UsersRound, ShieldCheck,
   Eye, EyeOff, ArrowRight, ArrowLeft, CheckCircle2, Phone, Mail, Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,9 @@ export const Route = createFileRoute("/signup")({ component: SignupPage });
 type Role = AuthUser["role"];
 
 const USER_TYPES: { role: Role; label: string; subtitle: string; icon: React.ElementType }[] = [
-  { role: "seeker",               label: "Candidate",            subtitle: "Student or Job Seeker looking for mentors and opportunities", icon: GraduationCap },
+  { role: "seeker",               label: "Job Seeker",           subtitle: "Student or Job Seeker looking for mentors and opportunities", icon: GraduationCap },
   { role: "mentor",               label: "Mentor",               subtitle: "Working professional ready to guide and mentor candidates",    icon: UsersRound },
-  { role: "opportunity_provider", label: "Opportunity Provider",  subtitle: "Recruiter, Company or Freelance client posting roles",    icon: Briefcase },
-  { role: "hr",                   label: "HR Professional",      subtitle: "Manage hiring pipelines, interviews and company recruitment", icon: Building2 },
-  { role: "admin",                label: "Admin",                subtitle: "CareerBridge team member with platform access",               icon: ShieldCheck },
+  { role: "opportunity_provider", label: "Recruiter",            subtitle: "Company or individual recruiter posting opportunities",    icon: Briefcase },
 ];
 
 function StepBar({ current }: { current: number }) {
@@ -160,11 +158,9 @@ function SignupPage() {
       const token = localStorage.getItem("cb-token");
       if (token) setAuth(r.user, token);
       const redirectTo =
-        selectedRole === "hr"
-          ? "/hr"
-          : selectedRole === "opportunity_provider"
-            ? "/recruiter/onboarding"
-            : "/dashboard";
+        selectedRole === "opportunity_provider"
+          ? "/recruiter/onboarding"
+          : "/dashboard";
       router.navigate({ to: redirectTo });
     } catch (err: any) {
       setError(err?.message ?? "Could not select role.");

@@ -2,12 +2,16 @@ import { apiFetch } from "@/lib/auth";
 
 export type RecruiterType =
   | "company_recruiter"
-  | "hr_agency"
   | "startup"
   | "consultancy"
   | "individual_recruiter";
 
-export type ApprovalStatus = "Pending" | "Approved" | "Rejected";
+export type ApprovalStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "ChangesRequested"
+  | "Suspended";
 
 export type RecruiterOnboardingStep =
   | "verification"
@@ -15,6 +19,8 @@ export type RecruiterOnboardingStep =
   | "type"
   | "pending_approval"
   | "rejected"
+  | "changes_requested"
+  | "suspended"
   | "complete";
 
 export type RecruiterCompanyProfile = {
@@ -62,6 +68,8 @@ export type RecruiterOnboardingStatus = {
   recruiter_type?: RecruiterType | string | null;
   approval_status: ApprovalStatus | string;
   admin_remarks?: string | null;
+  rejection_reason?: string | null;
+  required_changes?: string | null;
   require_admin_approval: boolean;
   profile_completion: number;
   onboarding_step: RecruiterOnboardingStep | string;
@@ -83,11 +91,6 @@ export const RECRUITER_TYPE_OPTIONS: { value: RecruiterType; label: string; desc
     value: "company_recruiter",
     label: "Company Recruiter",
     description: "Hire for your own company roles and campus drives.",
-  },
-  {
-    value: "hr_agency",
-    label: "HR Agency",
-    description: "Recruit on behalf of multiple client organizations.",
   },
   {
     value: "startup",

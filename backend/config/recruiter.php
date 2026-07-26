@@ -20,7 +20,6 @@ return [
     */
     'types' => [
         'company_recruiter',
-        'hr_agency',
         'startup',
         'consultancy',
         'individual_recruiter',

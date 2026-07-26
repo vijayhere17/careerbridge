@@ -31,16 +31,8 @@ use App\Http\Controllers\Api\MentorNotificationController;
 use App\Http\Controllers\Api\MentorProfileSettingsController;
 use App\Http\Controllers\Api\Mentor\MentorSecurityController;
 use App\Http\Controllers\Api\Mentor\MentorDashboardController;
-use App\Http\Controllers\Api\HR\HRDashboardController;
-use App\Http\Controllers\Api\HR\HRJobController;
-use App\Http\Controllers\Api\HR\HRApplicationController;
-use App\Http\Controllers\Api\HR\HRCandidateController;
-use App\Http\Controllers\Api\HR\HRInterviewController;
-use App\Http\Controllers\Api\HR\HRPipelineController;
-use App\Http\Controllers\Api\HR\HRReportController;
-use App\Http\Controllers\Api\HR\HRProfileController;
-use App\Http\Controllers\Api\HR\HRNotificationController;
-use App\Http\Controllers\Api\HR\HRSettingsController;
+use App\Http\Controllers\Api\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminRecruiterController;
 use App\Http\Controllers\Api\Recruiter\RecruiterApplicationController;
 use App\Http\Controllers\Api\Recruiter\RecruiterDashboardController;
 use App\Http\Controllers\Api\Recruiter\RecruiterNotificationController;
@@ -237,7 +229,7 @@ Route::post('auth/verify-registration', function (Request $request) use ($verify
 Route::post('auth/select-role', function (Request $request) use ($resolveAuthenticatedUser, $userFields, $recruiterOnboardingPayload) {
     $user = $resolveAuthenticatedUser($request);
     if (! $user) return response()->json(['message' => 'Unauthorized.'], 401);
-    $data = $request->validate(['role' => 'required|in:seeker,mentor,opportunity_provider,hr,admin']);
+    $data = $request->validate(['role' => 'required|in:seeker,mentor,opportunity_provider']);
     $user->update($data);
 
     $recruiterOnboarding = null;
@@ -353,7 +345,7 @@ Route::put('auth/profile', function (Request $request) use ($resolveAuthenticate
     $data = $request->validate([
         'name'         => 'required|string|max:255',
         'email'        => 'required|email|max:255|unique:users,email,' . $user->id,
-        'role'         => 'required|in:seeker,mentor,opportunity_provider,hr,admin',
+        'role'         => 'required|in:seeker,mentor,opportunity_provider',
         'company'      => 'nullable|string|max:255',
         'current_role' => 'nullable|string|max:255',
         'target_roles' => 'nullable|string',
@@ -434,68 +426,19 @@ Route::prefix('mentor')->group(function () {
     Route::get('reviews',                               [MentorController::class, 'mentorReviews']);
 });
 
-// ── HR MODULE ─────────────────────────────────────────────────────────────────
 
-Route::prefix('hr')->group(function () {
-    Route::get('dashboard', [HRDashboardController::class, 'index']);
 
-    Route::get('jobs', [HRJobController::class, 'index']);
-    Route::post('jobs', [HRJobController::class, 'store']);
-    Route::post('jobs/bulk', [HRJobController::class, 'bulk']);
-    Route::get('jobs/{id}', [HRJobController::class, 'show']);
-    Route::put('jobs/{id}', [HRJobController::class, 'update']);
-    Route::post('jobs/{id}/close', [HRJobController::class, 'close']);
-    Route::post('jobs/{id}/reopen', [HRJobController::class, 'reopen']);
-    Route::post('jobs/{id}/archive', [HRJobController::class, 'archive']);
-    Route::post('jobs/{id}/publish', [HRJobController::class, 'publish']);
-    Route::post('jobs/{id}/draft', [HRJobController::class, 'draft']);
-    Route::post('jobs/{id}/duplicate', [HRJobController::class, 'duplicate']);
-    Route::delete('jobs/{id}', [HRJobController::class, 'destroy']);
+// ── ADMIN MODULE ──────────────────────────────────────────────────────────────
 
-    Route::get('applications', [HRApplicationController::class, 'index']);
-    Route::post('applications', [HRApplicationController::class, 'store']);
-    Route::post('applications/bulk', [HRApplicationController::class, 'bulkUpdate']);
-    Route::post('applications/{id}/shortlist', [HRApplicationController::class, 'shortlist']);
-    Route::post('applications/{id}/reject', [HRApplicationController::class, 'reject']);
-    Route::get('applications/{id}', [HRApplicationController::class, 'show']);
-    Route::put('applications/{id}', [HRApplicationController::class, 'update']);
-    Route::delete('applications/{id}', [HRApplicationController::class, 'destroy']);
-
-    Route::get('candidates', [HRCandidateController::class, 'index']);
-    Route::get('candidates/{id}', [HRCandidateController::class, 'show']);
-    Route::post('candidates/{id}/tags', [HRCandidateController::class, 'updateTags']);
-    Route::post('candidates/{id}/notes', [HRCandidateController::class, 'storeNote']);
-    Route::delete('candidates/{id}/notes/{noteId}', [HRCandidateController::class, 'destroyNote']);
-
-    Route::get('interviews', [HRInterviewController::class, 'index']);
-    Route::post('interviews', [HRInterviewController::class, 'store']);
-    Route::get('interviews/calendar', [HRInterviewController::class, 'calendar']);
-    Route::get('interviews/{id}', [HRInterviewController::class, 'show']);
-    Route::put('interviews/{id}', [HRInterviewController::class, 'update']);
-    Route::post('interviews/{id}/complete', [HRInterviewController::class, 'complete']);
-    Route::post('interviews/{id}/cancel', [HRInterviewController::class, 'cancel']);
-    Route::post('interviews/{id}/reschedule', [HRInterviewController::class, 'reschedule']);
-    Route::delete('interviews/{id}', [HRInterviewController::class, 'destroy']);
-
-    Route::get('pipeline', [HRPipelineController::class, 'index']);
-    Route::post('pipeline/{id}/move', [HRPipelineController::class, 'move']);
-
-    Route::get('reports', [HRReportController::class, 'index']);
-
-    Route::get('profile', [HRProfileController::class, 'show']);
-    Route::post('profile', [HRProfileController::class, 'update']);
-
-    Route::get('notifications', [HRNotificationController::class, 'index']);
-    Route::get('notifications/unread-count', [HRNotificationController::class, 'unreadCount']);
-    Route::post('notifications/{id}/read', [HRNotificationController::class, 'markRead']);
-    Route::post('notifications/read-all', [HRNotificationController::class, 'markAllRead']);
-    Route::delete('notifications/{id}', [HRNotificationController::class, 'destroy']);
-
-    Route::get('settings', [HRSettingsController::class, 'show']);
-    Route::put('settings/profile', [HRSettingsController::class, 'updateProfile']);
-    Route::post('settings/password', [HRSettingsController::class, 'changePassword']);
-    Route::put('settings/preferences', [HRSettingsController::class, 'updatePreferences']);
-    Route::post('settings/avatar', [HRSettingsController::class, 'updateAvatar']);
+Route::prefix('admin')->group(function () {
+    Route::get('dashboard', [AdminDashboardController::class, 'index']);
+    Route::get('settings', [AdminRecruiterController::class, 'settings']);
+    Route::get('recruiters', [AdminRecruiterController::class, 'index']);
+    Route::get('recruiters/{userId}', [AdminRecruiterController::class, 'show']);
+    Route::get('recruiters/{userId}/history', [AdminRecruiterController::class, 'history']);
+    Route::post('recruiters/{userId}/review', [AdminRecruiterController::class, 'review']);
+    Route::get('mentors', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'mentors'));
+    Route::get('job-seekers', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'job-seekers'));
 });
 
 // ── RECRUITER MODULE ──────────────────────────────────────────────────────────
