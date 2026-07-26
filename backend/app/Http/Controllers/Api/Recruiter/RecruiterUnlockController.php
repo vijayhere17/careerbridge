@@ -57,6 +57,7 @@ class RecruiterUnlockController extends RecruiterBaseController
 
         $validator = Validator::make($request->query(), [
             'status' => 'nullable|in:earned,pending,refunded',
+            'search' => 'nullable|string|max:255',
             'from' => 'nullable|date',
             'to' => 'nullable|date',
             'opportunity_id' => 'nullable|integer',
@@ -73,6 +74,18 @@ class RecruiterUnlockController extends RecruiterBaseController
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
+        }
+
+        if ($search = trim((string) $request->query('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('candidate', function ($candidate) use ($search) {
+                    $candidate->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                })->orWhereHas('opportunity', function ($opportunity) use ($search) {
+                    $opportunity->where('title', 'like', "%{$search}%")
+                        ->orWhere('company_name', 'like', "%{$search}%");
+                });
+            });
         }
 
         if ($from = $request->query('from')) {

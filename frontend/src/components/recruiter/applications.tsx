@@ -121,6 +121,7 @@ export function ApplicationsPage() {
   const [interviewAt, setInterviewAt] = useState("");
   const [interviewLink, setInterviewLink] = useState("");
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -140,6 +141,8 @@ export function ApplicationsPage() {
       setPage(payload.currentPage);
       setLastPage(payload.lastPage);
       setTotal(payload.total);
+      const counts = (res as unknown as { status_counts?: Record<string, number> }).status_counts;
+      if (counts) setStatusCounts(counts);
       setSelected([]);
     } catch (err) {
       const message = apiErrorMessage(err, "Failed to load applications");
@@ -339,6 +342,34 @@ export function ApplicationsPage() {
           tint="bg-accent-soft text-accent-foreground"
         />
       </section>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          { value: "all", label: "All" },
+          { value: "new", label: "Applied" },
+          { value: "under_review", label: "Under Review" },
+          { value: "shortlisted", label: "Shortlisted" },
+          { value: "interview", label: "Interview" },
+          { value: "hired", label: "Hired" },
+          { value: "rejected", label: "Rejected" },
+        ].map((tab) => (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={status === tab.value ? "brand" : "outline"}
+            onClick={() => {
+              setStatus(tab.value);
+              setPage(1);
+            }}
+          >
+            {tab.label}
+            {tab.value !== "all" && statusCounts[tab.value] != null
+              ? ` (${statusCounts[tab.value]})`
+              : ""}
+          </Button>
+        ))}
+      </div>
 
       <form
         onSubmit={onSearch}
@@ -558,6 +589,7 @@ export function ApplicationsPage() {
                           application={application}
                           saving={saving}
                           onView={() => setDetailId(application.id)}
+                          onMessage={() => setDetailId(application.id)}
                           onShortlist={() => shortlistApplication(application)}
                           onHire={() => hireApplication(application)}
                           onReject={() => setRejectTarget({ type: "single", application })}
@@ -620,6 +652,7 @@ export function ApplicationsPage() {
                         application={application}
                         saving={saving}
                         onView={() => setDetailId(application.id)}
+                        onMessage={() => setDetailId(application.id)}
                         onShortlist={() => shortlistApplication(application)}
                         onHire={() => hireApplication(application)}
                         onReject={() => setRejectTarget({ type: "single", application })}
@@ -870,6 +903,7 @@ function RowActions({
   application,
   saving,
   onView,
+  onMessage,
   onShortlist,
   onHire,
   onReject,
@@ -879,6 +913,7 @@ function RowActions({
   application: ApplicationItem;
   saving: boolean;
   onView: () => void;
+  onMessage: () => void;
   onShortlist: () => void;
   onHire: () => void;
   onReject: () => void;
@@ -890,7 +925,10 @@ function RowActions({
   return (
     <div className={mobile ? "mt-4 grid grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-1"}>
       <Button type="button" variant="outline" size="sm" onClick={onView} disabled={saving}>
-        <Eye className="h-4 w-4" /> View
+        <Eye className="h-4 w-4" /> Profile
+      </Button>
+      <Button type="button" variant="outline" size="sm" onClick={onMessage} disabled={saving}>
+        Message
       </Button>
       <Button
         type="button"

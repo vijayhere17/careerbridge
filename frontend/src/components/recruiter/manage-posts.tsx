@@ -48,6 +48,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   FilePenLine,
   MoreHorizontal,
   Pause,
@@ -67,6 +68,7 @@ import {
 type Filters = {
   search: string;
   status: string;
+  bucket: string;
   type: string;
   sort: string;
 };
@@ -90,9 +92,18 @@ const PER_PAGE = 10;
 const DEFAULT_FILTERS: Filters = {
   search: "",
   status: "all",
+  bucket: "all",
   type: "all",
   sort: "latest",
 };
+
+const bucketTabs = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "draft", label: "Draft" },
+  { value: "closed", label: "Closed" },
+  { value: "expired", label: "Expired" },
+] as const;
 
 const opportunityTypeOptions = [
   { value: "job", label: "Job" },
@@ -125,16 +136,16 @@ const statusActions: Array<{
   icon: ComponentType<{ className?: string }>;
 }> = [
   { action: "publish", label: "Publish", icon: Send },
-  { action: "draft", label: "Move to Draft", icon: FilePenLine },
-  { action: "pause", label: "Pause", icon: Pause },
+  { action: "draft", label: "Unpublish to Draft", icon: FilePenLine },
+  { action: "pause", label: "Unpublish (Pause)", icon: Pause },
   { action: "close", label: "Close", icon: XCircle },
   { action: "reopen", label: "Reopen", icon: RotateCcw },
 ];
 
 const bulkActions: Array<{ action: BulkAction; label: string }> = [
   { action: "publish", label: "Publish selected" },
-  { action: "draft", label: "Move to draft" },
-  { action: "pause", label: "Pause selected" },
+  { action: "draft", label: "Unpublish to draft" },
+  { action: "pause", label: "Unpublish selected" },
   { action: "close", label: "Close selected" },
   { action: "reopen", label: "Reopen selected" },
   { action: "duplicate", label: "Duplicate selected" },
@@ -157,9 +168,11 @@ export function ManagePostsPage() {
   const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(null);
   const [summary, setSummary] = useState<{
     total?: number;
+    active?: number;
     draft?: number;
     published?: number;
     closed?: number;
+    expired?: number;
     archived?: number;
     paused?: number;
     views?: number;
@@ -178,7 +191,9 @@ export function ManagePostsPage() {
           page,
           per_page: PER_PAGE,
           search: filters.search || undefined,
-          status: filters.status === "all" ? undefined : filters.status,
+          bucket: filters.bucket === "all" ? undefined : filters.bucket,
+          status:
+            filters.bucket === "all" && filters.status !== "all" ? filters.status : undefined,
           type: filters.type === "all" ? undefined : filters.type,
           sort: filters.sort,
         }),
@@ -359,8 +374,8 @@ export function ManagePostsPage() {
 
   return (
     <RecruiterLayout
-      title="Manage Posts"
-      subtitle="Edit, pause and track every opportunity you've posted"
+      title="My Opportunities"
+      subtitle="Edit, publish and track every opportunity you've posted"
       actions={
         <Button asChild variant="brand" size="sm">
           <Link to="/recruiter/post-new">
@@ -370,12 +385,13 @@ export function ManagePostsPage() {
       }
     >
       {summary && (
-        <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+        <section className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
           {[
             ["Total", summary.total],
-            ["Published", summary.published],
+            ["Active", summary.active ?? summary.published],
             ["Drafts", summary.draft],
             ["Closed", summary.closed],
+            ["Expired", summary.expired],
             ["Paused", summary.paused],
             ["Views", summary.views],
             ["Applications", summary.applications],
@@ -387,6 +403,28 @@ export function ManagePostsPage() {
           ))}
         </section>
       )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {bucketTabs.map((tab) => (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={filters.bucket === tab.value ? "brand" : "outline"}
+            onClick={() => {
+              setDraftFilters((current) => ({ ...current, bucket: tab.value, status: "all" }));
+              setFilters((current) => ({ ...current, bucket: tab.value, status: "all" }));
+              setPage(1);
+            }}
+          >
+            {tab.label}
+            {tab.value === "active" && summary?.active != null ? ` (${summary.active})` : ""}
+            {tab.value === "draft" && summary?.draft != null ? ` (${summary.draft})` : ""}
+            {tab.value === "closed" && summary?.closed != null ? ` (${summary.closed})` : ""}
+            {tab.value === "expired" && summary?.expired != null ? ` (${summary.expired})` : ""}
+          </Button>
+        ))}
+      </div>
 
       <form
         onSubmit={applyFilters}
@@ -526,13 +564,13 @@ export function ManagePostsPage() {
                         onCheckedChange={toggleAll}
                       />
                     </TableHead>
-                    <TableHead>Job Title</TableHead>
+                    <TableHead>Opportunity Title</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Applications</TableHead>
-                    <TableHead className="text-right">Unlocks</TableHead>
                     <TableHead className="text-right">Views</TableHead>
-                    <TableHead>Posted</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Expiry</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -559,20 +597,29 @@ export function ManagePostsPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <StatusPill status={opportunity.status} />
+                        <StatusPill
+                          status={
+                            (opportunity as RecruiterOpportunity & { display_status?: string })
+                              .display_status || opportunity.status
+                          }
+                        />
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {numberLabel(opportunity.applications_count)}
                       </TableCell>
-                      <TableCell className="text-right">
-                        {numberLabel(opportunity.unlocks_count)}
-                      </TableCell>
                       <TableCell className="text-right">{numberLabel(opportunity.views)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(opportunity.published_at || opportunity.created_at)}
+                        {formatDate(opportunity.created_at)}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(
+                          (opportunity as RecruiterOpportunity & { expiry_date?: string | null })
+                            .expiry_date || opportunity.application_deadline,
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-end gap-1">
+                          <PreviewLink id={opportunity.id} title={opportunity.title} />
                           <EditLink id={opportunity.id} title={opportunity.title} />
                           <IconButton
                             title="Duplicate"
@@ -624,7 +671,12 @@ export function ManagePostsPage() {
                           <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
                             {typeLabel(opportunity.opportunity_type)}
                           </span>
-                          <StatusPill status={opportunity.status} />
+                          <StatusPill
+                            status={
+                              (opportunity as RecruiterOpportunity & { display_status?: string })
+                                .display_status || opportunity.status
+                            }
+                          />
                         </div>
                       </div>
                     </div>
@@ -636,13 +688,17 @@ export function ManagePostsPage() {
 
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <span className="rounded-full bg-muted px-2 py-1">
-                      Unlocks {numberLabel(opportunity.unlocks_count)}
-                    </span>
-                    <span className="rounded-full bg-muted px-2 py-1">
                       Views {numberLabel(opportunity.views)}
                     </span>
                     <span className="rounded-full bg-muted px-2 py-1">
-                      Posted {formatDate(opportunity.published_at || opportunity.created_at)}
+                      Created {formatDate(opportunity.created_at)}
+                    </span>
+                    <span className="rounded-full bg-muted px-2 py-1">
+                      Expiry{" "}
+                      {formatDate(
+                        (opportunity as RecruiterOpportunity & { expiry_date?: string | null })
+                          .expiry_date || opportunity.application_deadline,
+                      )}
                     </span>
                   </div>
 
@@ -829,6 +885,19 @@ function EditLink({ id, title }: { id: number; title: string }) {
   );
 }
 
+function PreviewLink({ id, title }: { id: number; title: string }) {
+  return (
+    <Link
+      to="/recruiter/post-new"
+      search={{ id: String(id), preview: "1" } as never}
+      title={`Preview ${title}`}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      <Eye className="h-4 w-4" />
+    </Link>
+  );
+}
+
 function IconButton({
   children,
   title,
@@ -860,6 +929,7 @@ function StatusPill({ status }: { status: string }) {
     draft: "bg-muted text-muted-foreground",
     paused: "bg-accent-soft text-accent-foreground",
     closed: "bg-destructive/10 text-destructive",
+    expired: "bg-destructive/10 text-destructive",
     archived: "bg-foreground/10 text-foreground",
   };
 
@@ -929,7 +999,7 @@ function numberLabel(value?: number | null) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return "Not posted";
+  if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("en", {

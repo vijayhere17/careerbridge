@@ -35,8 +35,10 @@ import { Route as CompaniesSlugRouteImport } from './routes/companies.$slug'
 import { Route as DomainsSlugRouteImport } from './routes/domains.$slug'
 import { Route as MentorsIdRouteImport } from './routes/mentors.$id'
 import { Route as RecruiterIndexRouteImport } from './routes/recruiter/index'
+import { Route as RecruiterAnalyticsRouteImport } from './routes/recruiter/analytics'
 import { Route as RecruiterApplicationsRouteImport } from './routes/recruiter/applications'
 import { Route as RecruiterManagePostsRouteImport } from './routes/recruiter/manage-posts'
+import { Route as RecruiterMessagesRouteImport } from './routes/recruiter/messages'
 import { Route as RecruiterNotificationsRouteImport } from './routes/recruiter/notifications'
 import { Route as RecruiterOnboardingRouteImport } from './routes/recruiter/onboarding'
 import { Route as RecruiterPostNewRouteImport } from './routes/recruiter/post-new'
@@ -178,6 +180,11 @@ const RecruiterIndexRoute = RecruiterIndexRouteImport.update({
   path: '/recruiter/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecruiterAnalyticsRoute = RecruiterAnalyticsRouteImport.update({
+  id: '/recruiter/analytics',
+  path: '/recruiter/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecruiterApplicationsRoute = RecruiterApplicationsRouteImport.update({
   id: '/recruiter/applications',
   path: '/recruiter/applications',
@@ -186,6 +193,11 @@ const RecruiterApplicationsRoute = RecruiterApplicationsRouteImport.update({
 const RecruiterManagePostsRoute = RecruiterManagePostsRouteImport.update({
   id: '/recruiter/manage-posts',
   path: '/recruiter/manage-posts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruiterMessagesRoute = RecruiterMessagesRouteImport.update({
+  id: '/recruiter/messages',
+  path: '/recruiter/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecruiterNotificationsRoute = RecruiterNotificationsRouteImport.update({
@@ -264,8 +276,10 @@ export interface FileRoutesByFullPath {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
+  '/recruiter/analytics': typeof RecruiterAnalyticsRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
+  '/recruiter/messages': typeof RecruiterMessagesRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
   '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
@@ -303,8 +317,10 @@ export interface FileRoutesByTo {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
+  '/recruiter/analytics': typeof RecruiterAnalyticsRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
+  '/recruiter/messages': typeof RecruiterMessagesRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
   '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
@@ -344,8 +360,10 @@ export interface FileRoutesById {
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
+  '/recruiter/analytics': typeof RecruiterAnalyticsRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
+  '/recruiter/messages': typeof RecruiterMessagesRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
   '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
@@ -386,8 +404,10 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
+    | '/recruiter/analytics'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
+    | '/recruiter/messages'
     | '/recruiter/notifications'
     | '/recruiter/onboarding'
     | '/recruiter/post-new'
@@ -425,8 +445,10 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
+    | '/recruiter/analytics'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
+    | '/recruiter/messages'
     | '/recruiter/notifications'
     | '/recruiter/onboarding'
     | '/recruiter/post-new'
@@ -465,8 +487,10 @@ export interface FileRouteTypes {
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
+    | '/recruiter/analytics'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
+    | '/recruiter/messages'
     | '/recruiter/notifications'
     | '/recruiter/onboarding'
     | '/recruiter/post-new'
@@ -503,8 +527,10 @@ export interface RootRouteChildren {
   AdminRecruitersRoute: typeof AdminRecruitersRouteWithChildren
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminWithdrawalsRoute: typeof AdminWithdrawalsRoute
+  RecruiterAnalyticsRoute: typeof RecruiterAnalyticsRoute
   RecruiterApplicationsRoute: typeof RecruiterApplicationsRoute
   RecruiterManagePostsRoute: typeof RecruiterManagePostsRoute
+  RecruiterMessagesRoute: typeof RecruiterMessagesRoute
   RecruiterNotificationsRoute: typeof RecruiterNotificationsRoute
   RecruiterOnboardingRoute: typeof RecruiterOnboardingRoute
   RecruiterPostNewRoute: typeof RecruiterPostNewRoute
@@ -701,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruiterIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recruiter/analytics': {
+      id: '/recruiter/analytics'
+      path: '/recruiter/analytics'
+      fullPath: '/recruiter/analytics'
+      preLoaderRoute: typeof RecruiterAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recruiter/applications': {
       id: '/recruiter/applications'
       path: '/recruiter/applications'
@@ -713,6 +746,13 @@ declare module '@tanstack/react-router' {
       path: '/recruiter/manage-posts'
       fullPath: '/recruiter/manage-posts'
       preLoaderRoute: typeof RecruiterManagePostsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiter/messages': {
+      id: '/recruiter/messages'
+      path: '/recruiter/messages'
+      fullPath: '/recruiter/messages'
+      preLoaderRoute: typeof RecruiterMessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recruiter/notifications': {
@@ -858,8 +898,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRecruitersRoute: AdminRecruitersRouteWithChildren,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminWithdrawalsRoute: AdminWithdrawalsRoute,
+  RecruiterAnalyticsRoute: RecruiterAnalyticsRoute,
   RecruiterApplicationsRoute: RecruiterApplicationsRoute,
   RecruiterManagePostsRoute: RecruiterManagePostsRoute,
+  RecruiterMessagesRoute: RecruiterMessagesRoute,
   RecruiterNotificationsRoute: RecruiterNotificationsRoute,
   RecruiterOnboardingRoute: RecruiterOnboardingRoute,
   RecruiterPostNewRoute: RecruiterPostNewRoute,

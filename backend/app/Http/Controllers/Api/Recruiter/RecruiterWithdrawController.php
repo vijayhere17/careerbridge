@@ -24,7 +24,7 @@ class RecruiterWithdrawController extends RecruiterBaseController
         }
 
         $validator = Validator::make($request->query(), [
-            'status' => 'nullable|in:pending,approved,rejected',
+            'status' => 'nullable|in:pending,approved,rejected,cancelled',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ]);
@@ -134,6 +134,38 @@ class RecruiterWithdrawController extends RecruiterBaseController
         );
 
         return $this->success($this->transform($withdraw), 'Withdrawal request submitted successfully.', 201);
+    }
+
+    public function cancel(Request $request, int $id)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $withdraw = WithdrawRequest::where('user_id', $user->id)->find($id);
+        if (! $withdraw) {
+            return $this->notFound('Withdrawal request not found.');
+        }
+
+        if ($withdraw->status !== 'pending') {
+            return $this->validationError(['status' => ['Only pending withdrawal requests can be cancelled.']]);
+        }
+
+        $withdraw->status = 'cancelled';
+        $withdraw->processed_at = now();
+        $withdraw->admin_remarks = trim(($withdraw->admin_remarks ? $withdraw->admin_remarks . "\n" : '') . 'Cancelled by recruiter.');
+        $withdraw->save();
+
+        $this->notifications->notify(
+            $user,
+            'Withdrawal request cancelled',
+            'Your withdrawal request of ₹' . number_format((float) $withdraw->amount, 2) . ' was cancelled.',
+            'withdraw',
+            ['withdraw_request_id' => $withdraw->id, 'status' => 'cancelled']
+        );
+
+        return $this->success($this->transform($withdraw), 'Withdrawal request cancelled successfully.');
     }
 
     private function hasColumn(string $column): bool

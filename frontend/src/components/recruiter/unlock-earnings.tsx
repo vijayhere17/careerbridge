@@ -20,6 +20,7 @@ import {
 } from "@/components/recruiter/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -160,6 +161,8 @@ export function UnlockEarnings() {
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
   const [meta, setMeta] = useState<PageMeta>({ currentPage: 1, lastPage: 1, total: 0 });
   const [status, setStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [chartDays, setChartDays] = useState("7");
   const [page, setPage] = useState(1);
   const [loadingOverview, setLoadingOverview] = useState(true);
@@ -202,6 +205,7 @@ export function UnlockEarnings() {
         page,
         per_page: PER_PAGE,
         status: status === "all" ? undefined : status,
+        search: appliedSearch || undefined,
       });
       const normalized = normalizePage<UnlockItem>(res.data as PaginatedPayload<UnlockItem>);
       setUnlocks(normalized.items);
@@ -212,7 +216,7 @@ export function UnlockEarnings() {
     } finally {
       setLoadingUnlocks(false);
     }
-  }, [page, status]);
+  }, [appliedSearch, page, status]);
 
   useEffect(() => {
     loadOverview();
@@ -255,8 +259,8 @@ export function UnlockEarnings() {
 
   return (
     <RecruiterLayout
-      title="Contact Unlock Earnings"
-      subtitle="Track earnings from paid contact unlocks"
+      title="Candidate Contact Unlocks"
+      subtitle="Track unlock history, payment status, and unlock income"
       actions={
         <Button asChild variant="brand" size="sm">
           <Link to="/recruiter/withdraw">
@@ -336,32 +340,56 @@ export function UnlockEarnings() {
 
       <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
         <div className="border-b border-border p-4 sm:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h3 className="font-semibold">Unlocks</h3>
+              <h3 className="font-semibold">Unlock History</h3>
               <p className="text-sm text-muted-foreground">
                 {meta.total
                   ? `${meta.total} unlock${meta.total === 1 ? "" : "s"}`
                   : "Recent unlock activity"}
               </p>
             </div>
-            <Select
-              value={status}
-              onValueChange={(value) => {
-                setStatus(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="earned">Earned</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="refunded">Refunded</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <Input
+                placeholder="Search candidate or opportunity..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedSearch(search.trim());
+                    setPage(1);
+                  }
+                }}
+                className="sm:w-64"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAppliedSearch(search.trim());
+                  setPage(1);
+                }}
+              >
+                Search
+              </Button>
+              <Select
+                value={status}
+                onValueChange={(value) => {
+                  setStatus(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="earned">Earned</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -373,7 +401,7 @@ export function UnlockEarnings() {
           ) : unlocks.length === 0 ? (
             <RecruiterEmptyState
               title="No unlocks found"
-              description="Candidate contact unlocks will appear here when buyers unlock them."
+              description="Candidate contact unlocks will appear here after successful unlocks."
             />
           ) : (
             <>
@@ -383,9 +411,9 @@ export function UnlockEarnings() {
                     <TableRow>
                       <TableHead>Candidate</TableHead>
                       <TableHead>Opportunity</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Unlock Date</TableHead>
+                      <TableHead className="text-right">Unlock Amount</TableHead>
+                      <TableHead>Payment Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

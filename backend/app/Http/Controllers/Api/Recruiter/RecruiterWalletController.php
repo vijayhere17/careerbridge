@@ -30,18 +30,26 @@ class RecruiterWalletController extends RecruiterBaseController
             ->whereYear('unlocked_at', now()->year)
             ->sum('amount');
 
+        $lifetimeUnlocks = (float) (clone $earnedUnlocks)->sum('amount');
+        $pendingWithdrawals = (float) (clone $withdrawals)->where('status', 'pending')->sum('amount');
+
         return $this->success([
             'balance' => (float) $wallet->balance,
             'pending_earnings' => (float) (clone $pendingUnlocks)->sum('amount'),
             'withdrawn' => (float) (clone $withdrawals)->where('status', 'approved')->sum('amount'),
             'today_earnings' => (float) $todayEarnings,
             'monthly_earnings' => (float) $monthlyEarnings,
+            'contact_unlock_earnings' => $lifetimeUnlocks,
+            'referral_earnings' => 0,
             'summary' => [
                 'available_balance' => (float) $wallet->balance,
-                'lifetime_earnings' => (float) (clone $earnedUnlocks)->sum('amount'),
+                'lifetime_earnings' => $lifetimeUnlocks,
                 'pending_earnings' => (float) (clone $pendingUnlocks)->sum('amount'),
-                'pending_withdrawals' => (float) (clone $withdrawals)->where('status', 'pending')->sum('amount'),
+                'pending_withdrawals' => $pendingWithdrawals,
+                'pending_balance' => (float) (clone $pendingUnlocks)->sum('amount') + $pendingWithdrawals,
                 'total_withdrawn' => (float) WithdrawRequest::where('user_id', $user->id)->where('status', 'approved')->sum('amount'),
+                'contact_unlock_earnings' => $lifetimeUnlocks,
+                'referral_earnings' => 0,
                 'successful_unlock_transactions' => WalletTransaction::where('user_id', $user->id)
                     ->where('category', 'unlock')
                     ->where('status', 'success')
@@ -58,9 +66,10 @@ class RecruiterWalletController extends RecruiterBaseController
         }
 
         $validator = Validator::make($request->query(), [
-            'category' => 'nullable|in:unlock,withdraw',
+            'category' => 'nullable|in:unlock,withdraw,refund,referral',
             'status' => 'nullable|in:success,pending,failed',
             'type' => 'nullable|in:credit,debit',
+            'search' => 'nullable|string|max:255',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ]);
@@ -70,7 +79,7 @@ class RecruiterWalletController extends RecruiterBaseController
         }
 
         $query = WalletTransaction::where('user_id', $user->id)
-            ->whereIn('category', ['unlock', 'withdraw']);
+            ->whereIn('category', ['unlock', 'withdraw', 'refund', 'referral']);
 
         if ($category = $request->query('category')) {
             $query->where('category', $category);
@@ -82,6 +91,15 @@ class RecruiterWalletController extends RecruiterBaseController
 
         if ($type = $request->query('type')) {
             $query->where('type', $type);
+        }
+
+        if ($search = trim((string) $request->query('search', ''))) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('subtitle', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%");
+            });
         }
 
         $transactions = $query->latest()

@@ -19,6 +19,7 @@ import {
 } from "@/components/recruiter/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -42,11 +43,17 @@ type WalletSummary = {
   withdrawn?: number;
   today_earnings?: number;
   monthly_earnings?: number;
+  contact_unlock_earnings?: number;
+  referral_earnings?: number;
   summary?: {
     available_balance?: number;
     lifetime_earnings?: number;
     pending_earnings?: number;
+    pending_withdrawals?: number;
+    pending_balance?: number;
     total_withdrawn?: number;
+    contact_unlock_earnings?: number;
+    referral_earnings?: number;
   };
 };
 
@@ -111,12 +118,13 @@ function normalizePage<T>(payload: PaginatedPayload<T> | T[] | null | undefined)
   items: T[];
   meta: PageMeta;
 } {
+  const page = Array.isArray(payload) ? null : payload;
   return {
     items: asList<T>(payload),
     meta: {
-      currentPage: payload?.current_page ?? 1,
-      lastPage: payload?.last_page ?? 1,
-      total: payload?.total ?? asList<T>(payload).length,
+      currentPage: page?.current_page ?? 1,
+      lastPage: page?.last_page ?? 1,
+      total: page?.total ?? asList<T>(payload).length,
     },
   };
 }
@@ -143,6 +151,10 @@ export function WalletPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [meta, setMeta] = useState<PageMeta>({ currentPage: 1, lastPage: 1, total: 0 });
   const [category, setCategory] = useState("all");
+  const [type, setType] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [search, setSearch] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
   const [loadingWallet, setLoadingWallet] = useState(true);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
@@ -170,8 +182,13 @@ export function WalletPage() {
         page,
         per_page: PER_PAGE,
         category: category === "all" ? undefined : category,
+        type: type === "all" ? undefined : type,
+        status: status === "all" ? undefined : status,
+        search: appliedSearch || undefined,
       });
-      const normalized = normalizePage<WalletTransaction>(res.data);
+      const normalized = normalizePage<WalletTransaction>(
+        res.data as PaginatedPayload<WalletTransaction>,
+      );
       setTransactions(normalized.items);
       setMeta(normalized.meta);
     } catch (err) {
@@ -180,7 +197,7 @@ export function WalletPage() {
     } finally {
       setLoadingTransactions(false);
     }
-  }, [category, page]);
+  }, [appliedSearch, category, page, status, type]);
 
   useEffect(() => {
     loadWallet();
@@ -192,22 +209,34 @@ export function WalletPage() {
 
   const cards = [
     {
-      label: "Available Balance",
+      label: "Current Balance",
       value: money(wallet?.balance ?? wallet?.summary?.available_balance),
       icon: Wallet,
       tint: "bg-primary-soft text-primary",
     },
     {
-      label: "Pending Earnings",
-      value: money(wallet?.pending_earnings ?? wallet?.summary?.pending_earnings),
+      label: "Pending Balance",
+      value: money(wallet?.summary?.pending_balance ?? wallet?.pending_earnings),
       icon: Clock,
       tint: "bg-accent-soft text-accent-foreground",
     },
     {
-      label: "Withdrawn",
-      value: money(wallet?.withdrawn ?? wallet?.summary?.total_withdrawn),
-      icon: TrendingDown,
+      label: "Lifetime Earnings",
+      value: money(wallet?.summary?.lifetime_earnings),
+      icon: TrendingUp,
       tint: "bg-secondary-soft text-secondary",
+    },
+    {
+      label: "Unlock Earnings",
+      value: money(wallet?.contact_unlock_earnings ?? wallet?.summary?.contact_unlock_earnings),
+      icon: TrendingUp,
+      tint: "bg-primary-soft text-primary",
+    },
+    {
+      label: "Referral Earnings",
+      value: money(wallet?.referral_earnings ?? wallet?.summary?.referral_earnings ?? 0),
+      icon: TrendingDown,
+      tint: "bg-muted text-muted-foreground",
     },
     {
       label: "Today",
@@ -240,7 +269,7 @@ export function WalletPage() {
       ) : walletError ? (
         <RecruiterErrorState message={walletError} onRetry={loadWallet} />
       ) : (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {cards.map((card) => {
             const Icon = card.icon;
             return (
@@ -270,22 +299,71 @@ export function WalletPage() {
                   : "Recent wallet activity"}
               </p>
             </div>
-            <Select
-              value={category}
-              onValueChange={(value) => {
-                setCategory(value);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                <SelectItem value="unlock">Unlocks</SelectItem>
-                <SelectItem value="withdraw">Withdrawals</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <Input
+                placeholder="Search transactions..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setAppliedSearch(search.trim());
+                    setPage(1);
+                  }
+                }}
+                className="sm:w-48"
+              />
+              <Select
+                value={category}
+                onValueChange={(value) => {
+                  setCategory(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-36">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  <SelectItem value="unlock">Unlock Income</SelectItem>
+                  <SelectItem value="withdraw">Withdrawal</SelectItem>
+                  <SelectItem value="refund">Refund</SelectItem>
+                  <SelectItem value="referral">Referral</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={type}
+                onValueChange={(value) => {
+                  setType(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Credit/Debit</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="debit">Debit</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={status}
+                onValueChange={(value) => {
+                  setStatus(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-full sm:w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

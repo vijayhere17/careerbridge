@@ -59,6 +59,7 @@ export function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [readFilter, setReadFilter] = useState<ReadFilter>("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -77,6 +78,7 @@ export function NotificationsPage() {
         page,
         per_page: perPage,
         unread: readFilter === "all" ? undefined : readFilter === "unread",
+        type: typeFilter === "all" ? undefined : typeFilter,
         search: appliedSearch || undefined,
       });
       const normalized = normalizeNotifications(res.data.notifications);
@@ -92,7 +94,7 @@ export function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedSearch, page, readFilter]);
+  }, [appliedSearch, page, readFilter, typeFilter]);
 
   useEffect(() => {
     loadNotifications();
@@ -167,7 +169,7 @@ export function NotificationsPage() {
         onSubmit={onSearch}
         className="rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5"
       >
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px_auto]">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -191,6 +193,26 @@ export function NotificationsPage() {
               <SelectItem value="all">All notifications</SelectItem>
               <SelectItem value="unread">Unread only</SelectItem>
               <SelectItem value="read">Read only</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={typeFilter}
+            onValueChange={(value) => {
+              setTypeFilter(value);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="application">Applications</SelectItem>
+              <SelectItem value="message">Messages</SelectItem>
+              <SelectItem value="interview">Interviews</SelectItem>
+              <SelectItem value="unlock">Unlocks</SelectItem>
+              <SelectItem value="withdraw">Withdrawals</SelectItem>
+              <SelectItem value="system">System</SelectItem>
             </SelectContent>
           </Select>
           <Button type="submit" variant="outline">

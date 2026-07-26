@@ -97,7 +97,7 @@ class RecruiterMessageController extends RecruiterBaseController
                 $application->candidate,
                 'New message from recruiter',
                 $message->body !== '' ? $message->body : 'You received an attachment.',
-                'application',
+                'message',
                 [
                     'recruiter_application_id' => $application->id,
                     'message_id' => $message->id,
@@ -106,6 +106,98 @@ class RecruiterMessageController extends RecruiterBaseController
         }
 
         return $this->success($this->transform($message->load(['sender', 'receiver'])), 'Message sent successfully.', 201);
+    }
+
+    public function conversations(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->query(), [
+            'search' => 'nullable|string|max:255',
+            'unread' => 'nullable|boolean',
+            'per_page' => 'nullable|integer|min:1|max:50',
+            'page' => 'nullable|integer|min:1',
+        ]);
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $opportunityIds = RecruiterOpportunity::where('user_id', $user->id)->pluck('id');
+        $applications = RecruiterApplication::with(['candidate:id,name,profile_photo', 'opportunity:id,title,company_name'])
+            ->whereIn('recruiter_opportunity_id', $opportunityIds)
+            ->whereHas('messages')
+            ->withMax('messages', 'created_at')
+            ->orderByDesc('messages_max_created_at')
+            ->paginate(min((int) $request->query('per_page', 20), 50));
+
+        $search = trim((string) $request->query('search', ''));
+        $unreadOnly = filter_var($request->query('unread'), FILTER_VALIDATE_BOOLEAN);
+
+        $items = collect($applications->items())->map(function (RecruiterApplication $application) use ($user) {
+            $last = RecruiterMessage::with('sender:id,name')
+                ->where('recruiter_application_id', $application->id)
+                ->latest('created_at')
+                ->first();
+            $unread = RecruiterMessage::where('recruiter_application_id', $application->id)
+                ->where('receiver_id', $user->id)
+                ->where('is_read', false)
+                ->count();
+
+            return [
+                'application_id' => $application->id,
+                'status' => $application->status,
+                'unread_count' => $unread,
+                'candidate' => $application->candidate ? [
+                    'id' => $application->candidate->id,
+                    'name' => $application->candidate->name,
+                    'profile_photo' => $this->mediaUrl($application->candidate->profile_photo),
+                ] : null,
+                'opportunity' => $application->opportunity ? [
+                    'id' => $application->opportunity->id,
+                    'title' => $application->opportunity->title,
+                    'company_name' => $application->opportunity->company_name,
+                ] : null,
+                'last_message' => $last ? [
+                    'id' => $last->id,
+                    'body' => $last->body,
+                    'attachment_name' => $last->attachment_name,
+                    'created_at' => $last->created_at,
+                    'sender_name' => $last->sender?->name,
+                    'is_mine' => (int) $last->sender_id === (int) $user->id,
+                ] : null,
+            ];
+        })->filter(function (array $row) use ($search, $unreadOnly) {
+            if ($unreadOnly && (int) ($row['unread_count'] ?? 0) === 0) {
+                return false;
+            }
+            if ($search === '') {
+                return true;
+            }
+            $haystack = strtolower(
+                ($row['candidate']['name'] ?? '') . ' ' .
+                ($row['opportunity']['title'] ?? '') . ' ' .
+                ($row['last_message']['body'] ?? '')
+            );
+
+            return str_contains($haystack, strtolower($search));
+        })->values();
+
+        return $this->success([
+            'conversations' => $items,
+            'pagination' => [
+                'current_page' => $applications->currentPage(),
+                'last_page' => $applications->lastPage(),
+                'per_page' => $applications->perPage(),
+                'total' => $applications->total(),
+            ],
+            'unread_count' => RecruiterMessage::whereIn(
+                'recruiter_application_id',
+                RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds)->pluck('id')
+            )->where('receiver_id', $user->id)->where('is_read', false)->count(),
+        ], 'Conversations retrieved successfully.');
     }
 
     public function unreadCount(Request $request)

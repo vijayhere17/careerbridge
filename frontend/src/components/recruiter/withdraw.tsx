@@ -144,6 +144,7 @@ export function WithdrawPage() {
   const [history, setHistory] = useState<WithdrawItem[]>([]);
   const [meta, setMeta] = useState<PageMeta>({ currentPage: 1, lastPage: 1, total: 0 });
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -161,6 +162,7 @@ export function WithdrawPage() {
         const res = await recruiterService.withdrawSummary({
           page: targetPage,
           per_page: PER_PAGE,
+          status: statusFilter === "all" ? undefined : statusFilter,
         });
         const data = res.data ?? null;
         const normalized = normalizeHistory(data);
@@ -175,7 +177,7 @@ export function WithdrawPage() {
         setLoading(false);
       }
     },
-    [page],
+    [page, statusFilter],
   );
 
   useEffect(() => {
@@ -430,7 +432,7 @@ export function WithdrawPage() {
           </section>
 
           <section className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-card">
-            <div className="flex flex-col gap-1 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-semibold">Withdrawal history</h3>
                 <p className="text-sm text-muted-foreground">
@@ -439,6 +441,20 @@ export function WithdrawPage() {
                     : "Your submitted requests"}
                 </p>
               </div>
+              <select
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="all">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
             </div>
             <div className="p-4 sm:p-5">
               {loading ? (
@@ -459,7 +475,8 @@ export function WithdrawPage() {
                           <TableHead>Account</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Status</TableHead>
-                          <TableHead>Remarks</TableHead>
+                          <TableHead>Admin Notes</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -482,6 +499,31 @@ export function WithdrawPage() {
                             </TableCell>
                             <TableCell className="max-w-xs text-sm text-muted-foreground">
                               {withdraw.admin_remarks || withdraw.remarks || "—"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {withdraw.status === "pending" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={saving}
+                                  onClick={async () => {
+                                    setSaving(true);
+                                    try {
+                                      await recruiterService.cancelWithdraw(withdraw.id);
+                                      toast.success("Withdrawal cancelled");
+                                      await loadSummary(page);
+                                    } catch (err) {
+                                      toast.error(apiErrorMessage(err, "Could not cancel request"));
+                                    } finally {
+                                      setSaving(false);
+                                    }
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              ) : (
+                                "—"
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}

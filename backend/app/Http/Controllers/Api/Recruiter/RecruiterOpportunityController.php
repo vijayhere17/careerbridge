@@ -18,7 +18,8 @@ class RecruiterOpportunityController extends RecruiterBaseController
 
         $validator = Validator::make($request->query(), [
             'search' => 'nullable|string|max:255',
-            'status' => 'nullable|in:draft,published,closed,archived,paused',
+            'status' => 'nullable|in:draft,published,closed,archived,paused,expired,active',
+            'bucket' => 'nullable|in:all,active,draft,closed,expired',
             'type' => 'nullable|string|max:100',
             'opportunity_type' => 'nullable|string|max:100',
             'sort' => 'nullable|in:latest,oldest,title,applications,views,deadline,salary',
@@ -42,8 +43,13 @@ class RecruiterOpportunityController extends RecruiterBaseController
             });
         }
 
-        if ($status = $request->query('status')) {
-            $query->where('status', $status);
+        $bucket = $request->query('bucket', $request->query('status'));
+        if ($bucket && $bucket !== 'all') {
+            $this->applyBucketFilter($query, (string) $bucket);
+        } elseif ($status = $request->query('status')) {
+            if (! in_array($status, ['expired', 'active'], true)) {
+                $query->where('status', $status);
+            }
         }
 
         if ($type = $request->query('type', $request->query('opportunity_type'))) {
@@ -74,12 +80,27 @@ class RecruiterOpportunityController extends RecruiterBaseController
         }
 
         $base = RecruiterOpportunity::where('user_id', $user->id);
+        $today = now()->toDateString();
+
+        $expiredQuery = (clone $base)
+            ->whereIn('status', ['published', 'paused'])
+            ->whereNotNull('application_deadline')
+            ->whereDate('application_deadline', '<', $today);
+
+        $activeQuery = (clone $base)
+            ->whereIn('status', ['published', 'paused'])
+            ->where(function ($q) use ($today) {
+                $q->whereNull('application_deadline')
+                    ->orWhereDate('application_deadline', '>=', $today);
+            });
 
         return $this->success([
             'total' => (clone $base)->count(),
+            'active' => (clone $activeQuery)->count(),
             'draft' => (clone $base)->where('status', 'draft')->count(),
             'published' => (clone $base)->where('status', 'published')->count(),
             'closed' => (clone $base)->where('status', 'closed')->count(),
+            'expired' => (clone $expiredQuery)->count(),
             'archived' => (clone $base)->where('status', 'archived')->count(),
             'paused' => (clone $base)->where('status', 'paused')->count(),
             'views' => (int) (clone $base)->sum('views'),
@@ -324,6 +345,38 @@ class RecruiterOpportunityController extends RecruiterBaseController
         return RecruiterOpportunity::where('user_id', $userId)->find($id);
     }
 
+    private function applyBucketFilter($query, string $bucket): void
+    {
+        $today = now()->toDateString();
+
+        match ($bucket) {
+            'active' => $query->whereIn('status', ['published', 'paused'])
+                ->where(function ($q) use ($today) {
+                    $q->whereNull('application_deadline')
+                        ->orWhereDate('application_deadline', '>=', $today);
+                }),
+            'draft' => $query->where('status', 'draft'),
+            'closed' => $query->where('status', 'closed'),
+            'expired' => $query->whereIn('status', ['published', 'paused'])
+                ->whereNotNull('application_deadline')
+                ->whereDate('application_deadline', '<', $today),
+            default => null,
+        };
+    }
+
+    private function isExpired(RecruiterOpportunity $opportunity): bool
+    {
+        if (! $opportunity->application_deadline) {
+            return false;
+        }
+
+        if (! in_array($opportunity->status, ['published', 'paused'], true)) {
+            return false;
+        }
+
+        return $opportunity->application_deadline->toDateString() < now()->toDateString();
+    }
+
     private function applyStatus(RecruiterOpportunity $opportunity, string $status): void
     {
         match ($status) {
@@ -386,12 +439,15 @@ class RecruiterOpportunityController extends RecruiterBaseController
             'contact_visibility' => $opportunity->contact_visibility,
             'contact_price' => $opportunity->contact_price !== null ? (float) $opportunity->contact_price : null,
             'status' => $opportunity->status,
+            'is_expired' => $this->isExpired($opportunity),
+            'display_status' => $this->isExpired($opportunity) ? 'expired' : $opportunity->status,
             'views' => (int) $opportunity->views,
             'applications_count' => (int) $opportunity->applications_count,
             'unlocks_count' => (int) $opportunity->unlocks_count,
             'published_at' => $opportunity->published_at,
             'closed_at' => $opportunity->closed_at,
             'archived_at' => $opportunity->archived_at,
+            'expiry_date' => $opportunity->application_deadline,
             'created_at' => $opportunity->created_at,
             'updated_at' => $opportunity->updated_at,
         ];

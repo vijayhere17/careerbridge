@@ -229,9 +229,23 @@ export const recruiterService = {
     recruiterFetch<{ timeline: RecruiterApiRecord[] }>(`/applications/${id}/timeline`),
 
   applicationMessages: (id: number) =>
-    recruiterFetch<{ application_id: number; messages: RecruiterApiRecord[]; unread_count: number }>(
-      `/applications/${id}/messages`,
-    ),
+    recruiterFetch<{
+      application_id: number;
+      messages: RecruiterApiRecord[];
+      unread_count: number;
+    }>(`/applications/${id}/messages`),
+
+  conversations: (params: Record<string, string | number | boolean | undefined> = {}) =>
+    recruiterFetch<{
+      conversations: RecruiterApiRecord[];
+      pagination?: {
+        current_page?: number;
+        last_page?: number;
+        per_page?: number;
+        total?: number;
+      };
+      unread_count?: number;
+    }>(`/messages${qs(params)}`),
 
   sendApplicationMessage: (id: number, body?: string, attachment?: File | null) => {
     if (attachment) {
@@ -322,11 +336,23 @@ export const recruiterService = {
       body: JSON.stringify(payload),
     }),
 
+  cancelWithdraw: (id: number) =>
+    recruiterFetch<RecruiterApiRecord>(`/withdraw/${id}/cancel`, { method: "POST" }),
+
+  analytics: (params: Record<string, string | number | undefined> = {}) =>
+    recruiterFetch<RecruiterApiRecord>(`/analytics${qs(params)}`),
+
   getSettings: () => recruiterFetch<RecruiterApiRecord>("/settings"),
 
   updateSettingsProfile: (payload: Record<string, string>) =>
     recruiterFetch<RecruiterApiRecord>("/settings/profile", {
       method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  changeEmail: (payload: { email: string; current_password: string }) =>
+    recruiterFetch<RecruiterApiRecord>("/settings/email", {
+      method: "POST",
       body: JSON.stringify(payload),
     }),
 
@@ -343,6 +369,24 @@ export const recruiterService = {
   updatePreferences: (payload: Record<string, boolean>) =>
     recruiterFetch<RecruiterApiRecord>("/settings/preferences", {
       method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  updatePayout: (payload: {
+    bank_name?: string;
+    account_holder?: string;
+    account_number?: string;
+    ifsc?: string;
+    upi?: string;
+  }) =>
+    recruiterFetch<RecruiterApiRecord>("/settings/payout", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteAccount: (payload: { current_password: string; confirmation: "DELETE" | string }) =>
+    recruiterFetch<null>("/settings/delete-account", {
+      method: "POST",
       body: JSON.stringify(payload),
     }),
 };
