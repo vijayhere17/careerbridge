@@ -3,7 +3,6 @@ import {
   GraduationCap,
   Code2,
   Users,
-  UserCheck,
   Search,
   SlidersHorizontal,
   MapPin,
@@ -53,12 +52,10 @@ const CATEGORIES = [
   { id: "internships", label: "Internships", icon: GraduationCap },
   { id: "freelance", label: "Freelance Projects", icon: Code2 },
   { id: "recruiter", label: "Urgent Hiring", icon: Users },
-  { id: "hr", label: "HR Consultations", icon: UserCheck },
 ];
 
 type WorkType = "Remote" | "Hybrid" | "Onsite";
 type ProviderType =
-  | "Company HR"
   | "Recruiter"
   | "Founder"
   | "Hiring Manager"
@@ -72,7 +69,7 @@ type AppStatus =
   | "Interview Scheduled"
   | "Technical Round"
   | "Manager Round"
-  | "HR Round"
+  | "Recruiter Round"
   | "Offer Received"
   | "Selected"
   | "Joined"
@@ -109,6 +106,7 @@ interface Opportunity {
   industry: string;
   domain: string;
   companyWebsite?: string;
+  source?: "legacy" | "recruiter";
 }
 
 interface RecommendedMentor {
@@ -148,14 +146,13 @@ const APP_STATUSES: AppStatus[] = [
   "Interview Scheduled",
   "Technical Round",
   "Manager Round",
-  "HR Round",
+  "Recruiter Round",
   "Offer Received",
   "Selected",
   "Joined",
 ];
 
 const PROVIDER_BADGES: Record<string, string> = {
-  "Company HR": "Verified HR",
   Recruiter: "Verified Recruiter",
   Founder: "Verified Startup",
   "Hiring Manager": "Verified Company",
@@ -163,6 +160,29 @@ const PROVIDER_BADGES: Record<string, string> = {
   Mentor: "Verified Mentor",
   "Freelance Client": "Verified Client",
 };
+
+const TYPE_TO_CATEGORY: Record<string, string> = {
+  job: "jobs",
+  internship: "internships",
+  freelance: "freelance",
+};
+
+function mapRecruiterStatus(status?: string): AppStatus {
+  const normalized = (status || "new").toLowerCase();
+  const map: Record<string, AppStatus> = {
+    new: "Applied",
+    under_review: "Under Review",
+    shortlisted: "Shortlisted",
+    interview: "Interview Scheduled",
+    interview_completed: "Interview Scheduled",
+    accepted: "Offer Received",
+    rejected: "Rejected",
+    hired: "Selected",
+    completed: "Joined",
+    withdrawn: "Rejected",
+  };
+  return map[normalized] || "Applied";
+}
 
 const DEMO_OPPS: Opportunity[] = [
   {
@@ -183,9 +203,9 @@ const DEMO_OPPS: Opportunity[] = [
     skills: ["Flutter", "Dart", "Firebase", "REST API", "Git"],
     benefits: ["Health insurance", "PF", "Annual bonus", "Learning budget"],
     employmentType: "Full Time",
-    interviewProcess: "Online Test → Technical Round → HR Round",
+    interviewProcess: "Online Test → Technical Round → Recruiter Round",
     providerName: "Priya Sharma",
-    providerType: "Company HR",
+    providerType: "Recruiter",
     providerVerified: true,
     contactPrice: 10,
     phone: "+91 98765 43210",
@@ -214,7 +234,7 @@ const DEMO_OPPS: Opportunity[] = [
     skills: ["Node.js", "PostgreSQL", "Docker", "AWS", "REST API"],
     benefits: ["ESOP", "Flexible hours", "Remote Fridays", "Gym"],
     employmentType: "Full Time",
-    interviewProcess: "Resume Screen → Coding Round → System Design → HR",
+    interviewProcess: "Resume Screen → Coding Round → System Design → Recruiter",
     providerName: "Rahul Mehta",
     providerType: "Hiring Manager",
     providerVerified: true,
@@ -246,7 +266,7 @@ const DEMO_OPPS: Opportunity[] = [
     employmentType: "Full Time",
     interviewProcess: "Portfolio Review → Design Challenge → Cultural Fit",
     providerName: "Sneha Kapoor",
-    providerType: "Company HR",
+    providerType: "Recruiter",
     providerVerified: true,
     contactPrice: 10,
     phone: "+91 96543 21098",
@@ -277,7 +297,7 @@ const DEMO_OPPS: Opportunity[] = [
     employmentType: "Internship",
     interviewProcess: "Assignment → Product Discussion → Culture Fit",
     providerName: "Ananya Iyer",
-    providerType: "Company HR",
+    providerType: "Recruiter",
     providerVerified: true,
     contactPrice: 10,
     phone: "+91 95432 10987",
@@ -699,7 +719,7 @@ function DetailsPanel({
               onClick={onUnlock}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              <Lock className="h-4 w-4" /> Unlock HR Contact
+              <Lock className="h-4 w-4" /> Unlock Recruiter Contact
             </button>
           ) : (
             <button
@@ -844,7 +864,7 @@ function ContactDetailsPage({ opp, onClose }: { opp: Opportunity; onClose: () =>
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 lg:items-center p-4">
       <div className="w-full max-w-sm rounded-2xl bg-surface shadow-xl">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold text-sm">HR Contact Details</h3>
+          <h3 className="font-bold text-sm">Recruiter Contact Details</h3>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -1347,60 +1367,169 @@ export function OpportunitiesHub() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await apiFetch<{ opportunities: any[] }>("/api/opportunities");
-        if (data?.opportunities?.length) {
-          setOpportunities(
-            data.opportunities.map((item) => ({
-              id: item.id,
-              category: item.category,
-              company: item.company,
-              logo: item.company_logo ?? item.company?.slice(0, 2).toUpperCase(),
-              title: item.title,
-              role: item.role ?? item.title,
-              location: item.location,
-              experience: item.experience,
-              salary: item.salary,
-              workType: item.work_type ?? "Onsite",
-              postedDate: "Recently",
-              verified: item.verified ?? false,
-              description: item.description,
-              skills: item.skills ?? [],
-              benefits: item.benefits ?? [],
-              employmentType: item.employment_type ?? "Full Time",
-              interviewProcess: item.interview_process ?? "",
-              providerName: item.provider_name ?? "",
-              providerType: item.provider_type ?? "Company HR",
-              providerVerified: item.provider_verified ?? false,
-              contactPrice: item.contact_price ?? 10,
-              phone: item.contact_phone,
-              email: item.contact_email,
-              whatsapp: item.contact_whatsapp,
-              linkedin: item.linkedin_url,
-              applyUrl: item.application_url,
-              industry: item.industry ?? "",
-              domain: item.domain ?? "",
-              companyWebsite: item.company_website,
-            })),
-          );
+        const mapped: Opportunity[] = [];
+
+        try {
+          const data = await apiFetch<{ opportunities: any[] }>("/api/opportunities");
+          if (data?.opportunities?.length) {
+            mapped.push(
+              ...data.opportunities.map((item) => ({
+                id: String(item.id),
+                category: item.category,
+                company: item.company,
+                logo: item.company_logo ?? item.company?.slice(0, 2).toUpperCase(),
+                title: item.title,
+                role: item.role ?? item.title,
+                location: item.location,
+                experience: item.experience,
+                salary: item.salary,
+                workType: item.work_type ?? "Onsite",
+                postedDate: "Recently",
+                verified: item.verified ?? false,
+                description: item.description,
+                skills: item.skills ?? [],
+                benefits: item.benefits ?? [],
+                employmentType: item.employment_type ?? "Full Time",
+                interviewProcess: item.interview_process ?? "",
+                providerName: item.provider_name ?? "",
+                providerType: (item.provider_type === "Company HR"
+                  ? "Recruiter"
+                  : item.provider_type) ?? "Recruiter",
+                providerVerified: item.provider_verified ?? false,
+                contactPrice: item.contact_price ?? 10,
+                phone: item.contact_phone,
+                email: item.contact_email,
+                whatsapp: item.contact_whatsapp,
+                linkedin: item.linkedin_url,
+                applyUrl: item.application_url,
+                industry: item.industry ?? "",
+                domain: item.domain ?? "",
+                companyWebsite: item.company_website,
+                source: "legacy" as const,
+              })),
+            );
+          }
+        } catch {
+          /* legacy opportunities optional */
         }
+
+        try {
+          const recruiterData = await apiFetch<{
+            success?: boolean;
+            data?: { data?: any[] } | any[];
+          }>("/api/recruiter-opportunities?per_page=50");
+          const payload = recruiterData?.data;
+          const items = Array.isArray(payload)
+            ? payload
+            : Array.isArray((payload as any)?.data)
+              ? (payload as any).data
+              : [];
+          mapped.push(
+            ...items.map((item: any) => {
+              const salaryMin = item.salary_min != null ? `₹${item.salary_min}` : "";
+              const salaryMax = item.salary_max != null ? `₹${item.salary_max}` : "";
+              const salary =
+                salaryMin && salaryMax
+                  ? `${salaryMin} - ${salaryMax}`
+                  : salaryMin || salaryMax || "Not disclosed";
+              const skills =
+                typeof item.skills === "string"
+                  ? item.skills.split(",").map((s: string) => s.trim()).filter(Boolean)
+                  : Array.isArray(item.skills)
+                    ? item.skills
+                    : [];
+              return {
+                id: `ro-${item.id}`,
+                category: TYPE_TO_CATEGORY[item.opportunity_type] || "jobs",
+                company: item.company_name || "Company",
+                logo: (item.company_name || "CB").slice(0, 2).toUpperCase(),
+                title: item.title,
+                role: item.title,
+                location: item.location || "Location TBA",
+                experience: item.experience_level || "Any",
+                salary,
+                workType: (item.work_mode as WorkType) || "Onsite",
+                postedDate: item.published_at
+                  ? new Date(item.published_at).toLocaleDateString()
+                  : "Recently",
+                verified: true,
+                description: item.description || "",
+                skills,
+                benefits: [],
+                employmentType: item.employment_type || "Full Time",
+                interviewProcess: "",
+                providerName: item.company_name || "Recruiter",
+                providerType: "Recruiter" as ProviderType,
+                providerVerified: true,
+                contactPrice: Number(item.contact_price ?? 49),
+                industry: "",
+                domain: "",
+                source: "recruiter" as const,
+              };
+            }),
+          );
+        } catch {
+          /* recruiter opportunities optional */
+        }
+
+        if (mapped.length > 0) {
+          setOpportunities(mapped);
+        }
+
         const savedData = await apiFetch<{ opportunities: any[] }>("/api/opportunities/saved");
         if (savedData?.opportunities)
-          setSaved(new Set(savedData.opportunities.map((i: any) => i.id)));
+          setSaved(new Set(savedData.opportunities.map((i: any) => String(i.id))));
 
-        const applicationData = await apiFetch<{ applications: any[] }>(
-          "/api/opportunities/applications",
-        );
+        const applications: Application[] = [];
+        try {
+          const applicationData = await apiFetch<{ applications: any[] }>(
+            "/api/opportunities/applications",
+          );
+          applications.push(
+            ...(applicationData.applications || []).map((app: any) => ({
+              id: String(app.id),
+              opportunityId: String(app.opportunityId),
+              company: app.company,
+              role: app.title,
+              status: app.status,
+              appliedDate: new Date(app.appliedAt).toLocaleDateString(),
+            })),
+          );
+        } catch {
+          /* legacy applications optional */
+        }
 
-        setApplications(
-          applicationData.applications.map((app: any) => ({
-            id: app.id,
-            opportunityId: app.opportunityId,
-            company: app.company,
-            role: app.title,
-            status: app.status,
-            appliedDate: new Date(app.appliedAt).toLocaleDateString(),
-          })),
-        );
+        try {
+          const recruiterApps = await apiFetch<{
+            applications?: any[];
+            data?: { data?: any[] } | any[];
+          }>("/api/recruiter-opportunities/applications");
+          const list =
+            recruiterApps.applications ||
+            (Array.isArray(recruiterApps.data)
+              ? recruiterApps.data
+              : Array.isArray((recruiterApps.data as any)?.data)
+                ? (recruiterApps.data as any).data
+                : []);
+          applications.push(
+            ...list.map((app: any) => ({
+              id: String(app.id),
+              opportunityId: `ro-${app.opportunityId}`,
+              company: app.company,
+              role: app.title,
+              status: mapRecruiterStatus(app.status),
+              appliedDate: app.appliedAt
+                ? new Date(app.appliedAt).toLocaleDateString()
+                : "Recently",
+            })),
+          );
+        } catch {
+          /* recruiter applications optional */
+        }
+
+        if (applications.length > 0) {
+          setApplications(applications);
+        }
       } catch {
         /* use demo data */
       }
@@ -1454,22 +1583,38 @@ export function OpportunitiesHub() {
     if (!selectedOpp) return;
 
     try {
-      const response = await apiFetch<any>("/api/opportunities/apply", {
-        method: "POST",
-        body: JSON.stringify({
-          opportunity_id: Number(selectedOpp.id),
-          message,
-          resume,
-        }),
-      });
+      const isRecruiterOpp =
+        selectedOpp.source === "recruiter" || String(selectedOpp.id).startsWith("ro-");
+      const opportunityId = isRecruiterOpp
+        ? Number(String(selectedOpp.id).replace(/^ro-/, ""))
+        : Number(selectedOpp.id);
 
+      const response = isRecruiterOpp
+        ? await apiFetch<any>(`/api/recruiter-opportunities/${opportunityId}/apply`, {
+            method: "POST",
+            body: JSON.stringify({ message, resume }),
+          })
+        : await apiFetch<any>("/api/opportunities/apply", {
+            method: "POST",
+            body: JSON.stringify({
+              opportunity_id: opportunityId,
+              message,
+              resume,
+            }),
+          });
+
+      const application = response.application || response.data;
       setApplications((prev) => [
         {
-          id: response.application.id,
-          opportunityId: response.application.opportunityId,
-          company: response.application.company,
-          role: response.application.title,
-          status: response.application.status,
+          id: String(application.id),
+          opportunityId: isRecruiterOpp
+            ? `ro-${application.opportunityId || opportunityId}`
+            : String(application.opportunityId || opportunityId),
+          company: application.company || selectedOpp.company,
+          role: application.title || selectedOpp.title,
+          status: isRecruiterOpp
+            ? mapRecruiterStatus(application.status)
+            : application.status,
           appliedDate: "Just now",
         },
         ...prev,

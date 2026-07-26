@@ -123,12 +123,13 @@ function normalizePage<T>(payload: PaginatedPayload<T> | T[] | null | undefined)
   meta: PageMeta;
 } {
   const items = asList<T>(payload);
+  const page = Array.isArray(payload) ? null : payload;
   return {
     items,
     meta: {
-      currentPage: payload?.current_page ?? 1,
-      lastPage: payload?.last_page ?? 1,
-      total: payload?.total ?? items.length,
+      currentPage: page?.current_page ?? 1,
+      lastPage: page?.last_page ?? 1,
+      total: page?.total ?? items.length,
     },
   };
 }
@@ -159,6 +160,7 @@ export function UnlockEarnings() {
   const [unlocks, setUnlocks] = useState<UnlockItem[]>([]);
   const [meta, setMeta] = useState<PageMeta>({ currentPage: 1, lastPage: 1, total: 0 });
   const [status, setStatus] = useState("all");
+  const [chartDays, setChartDays] = useState("7");
   const [page, setPage] = useState(1);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingUnlocks, setLoadingUnlocks] = useState(true);
@@ -181,7 +183,7 @@ export function UnlockEarnings() {
     try {
       const [statsRes, chartRes] = await Promise.all([
         recruiterService.unlockStats(),
-        recruiterService.unlockChart({ days: 7 }),
+        recruiterService.unlockChart({ days: Number(chartDays) || 7 }),
       ]);
       setStats(statsRes.data ?? null);
       setChart(normalizeChart(chartRes.data));
@@ -190,7 +192,7 @@ export function UnlockEarnings() {
     } finally {
       setLoadingOverview(false);
     }
-  }, []);
+  }, [chartDays]);
 
   const loadUnlocks = useCallback(async () => {
     setLoadingUnlocks(true);
@@ -201,7 +203,7 @@ export function UnlockEarnings() {
         per_page: PER_PAGE,
         status: status === "all" ? undefined : status,
       });
-      const normalized = normalizePage<UnlockItem>(res.data);
+      const normalized = normalizePage<UnlockItem>(res.data as PaginatedPayload<UnlockItem>);
       setUnlocks(normalized.items);
       setMeta(normalized.meta);
     } catch (err) {
@@ -291,12 +293,20 @@ export function UnlockEarnings() {
           <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-card">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="font-semibold">Weekly earnings</h3>
+                <h3 className="font-semibold">Unlock earnings</h3>
                 <p className="text-sm text-muted-foreground">
                   Amount and count from the API chart data
                 </p>
               </div>
-              <span className="text-xs text-muted-foreground">Last 7 days</span>
+              <Select value={chartDays} onValueChange={setChartDays}>
+                <SelectTrigger className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="mt-6 h-72">
               {chartData.length === 0 ? (

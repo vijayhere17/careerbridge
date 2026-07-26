@@ -2,13 +2,52 @@
 
 namespace App\Http\Controllers\Api\Recruiter;
 
+use App\Models\RecruiterApplication;
 use App\Models\RecruiterContactUnlock;
+use App\Models\RecruiterOpportunity;
+use App\Services\RecruiterUnlockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use InvalidArgumentException;
 
 class RecruiterUnlockController extends RecruiterBaseController
 {
+    public function __construct(private RecruiterUnlockService $unlockService)
+    {
+    }
+
+    public function store(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'recruiter_application_id' => 'required|integer|exists:recruiter_applications,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $application = RecruiterApplication::with(['candidate', 'opportunity'])
+            ->find($request->input('recruiter_application_id'));
+
+        if (! $application || (int) $application->opportunity?->user_id !== (int) $user->id) {
+            return $this->forbidden('You do not own this application.');
+        }
+
+        try {
+            $unlock = $this->unlockService->unlock($user, $application);
+        } catch (InvalidArgumentException $e) {
+            return $this->validationError(['unlock' => [$e->getMessage()]]);
+        }
+
+        return $this->success($this->transform($unlock), 'Candidate contact unlocked successfully.', 201);
+    }
+
     public function index(Request $request)
     {
         [$user, $error] = $this->recruiterUser($request);

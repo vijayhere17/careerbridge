@@ -33,7 +33,11 @@ use App\Http\Controllers\Api\Mentor\MentorSecurityController;
 use App\Http\Controllers\Api\Mentor\MentorDashboardController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\Admin\AdminRecruiterController;
+use App\Http\Controllers\Api\Admin\AdminUnlockController;
+use App\Http\Controllers\Api\Admin\AdminWithdrawController;
+use App\Http\Controllers\Api\RecruiterOpportunityApplyController;
 use App\Http\Controllers\Api\Recruiter\RecruiterApplicationController;
+use App\Http\Controllers\Api\Recruiter\RecruiterMessageController;
 use App\Http\Controllers\Api\Recruiter\RecruiterDashboardController;
 use App\Http\Controllers\Api\Recruiter\RecruiterNotificationController;
 use App\Http\Controllers\Api\Recruiter\RecruiterOnboardingController;
@@ -149,6 +153,12 @@ Route::post('/upload-resume', [ResumeController::class, 'upload']);
 Route::post('/opportunities/apply', [ApplicationController::class, 'apply']);
 
 Route::get('/opportunities/applications', [ApplicationController::class, 'index']);
+
+Route::get('/recruiter-opportunities', [RecruiterOpportunityApplyController::class, 'index']);
+Route::post('/recruiter-opportunities/{id}/apply', [RecruiterOpportunityApplyController::class, 'apply']);
+Route::get('/recruiter-opportunities/applications', [RecruiterOpportunityApplyController::class, 'myApplications']);
+Route::get('/recruiter-opportunities/applications/{id}/messages', [RecruiterOpportunityApplyController::class, 'messages']);
+Route::post('/recruiter-opportunities/applications/{id}/messages', [RecruiterOpportunityApplyController::class, 'sendMessage']);
 
 Route::get('/wallet', [WalletController::class, 'index']);
 Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
@@ -439,6 +449,9 @@ Route::prefix('admin')->group(function () {
     Route::post('recruiters/{userId}/review', [AdminRecruiterController::class, 'review']);
     Route::get('mentors', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'mentors'));
     Route::get('job-seekers', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'job-seekers'));
+    Route::get('withdrawals', [AdminWithdrawController::class, 'index']);
+    Route::post('withdrawals/{id}/review', [AdminWithdrawController::class, 'review']);
+    Route::get('unlocks', [AdminUnlockController::class, 'index']);
 });
 
 // ── RECRUITER MODULE ──────────────────────────────────────────────────────────
@@ -480,11 +493,21 @@ Route::prefix('recruiter')->group(function () {
     Route::post('applications', [RecruiterApplicationController::class, 'store']);
     Route::post('applications/bulk', [RecruiterApplicationController::class, 'bulkUpdate']);
     Route::post('applications/{id}/shortlist', [RecruiterApplicationController::class, 'shortlist']);
+    Route::post('applications/{id}/under-review', [RecruiterApplicationController::class, 'underReview']);
+    Route::post('applications/{id}/accept', [RecruiterApplicationController::class, 'accept']);
     Route::post('applications/{id}/reject', [RecruiterApplicationController::class, 'reject']);
     Route::post('applications/{id}/hire', [RecruiterApplicationController::class, 'hire']);
+    Route::post('applications/{id}/complete-interview', [RecruiterApplicationController::class, 'completeInterview']);
+    Route::post('applications/{id}/complete', [RecruiterApplicationController::class, 'complete']);
+    Route::post('applications/{id}/request-info', [RecruiterApplicationController::class, 'requestInfo']);
     Route::post('applications/{id}/schedule-interview', [RecruiterApplicationController::class, 'scheduleInterview']);
     Route::get('applications/{id}', [RecruiterApplicationController::class, 'show']);
+    Route::get('applications/{id}/timeline', [RecruiterApplicationController::class, 'timeline']);
+    Route::get('applications/{id}/messages', [RecruiterMessageController::class, 'index']);
+    Route::post('applications/{id}/messages', [RecruiterMessageController::class, 'store']);
     Route::put('applications/{id}', [RecruiterApplicationController::class, 'update']);
+
+    Route::get('messages/unread-count', [RecruiterMessageController::class, 'unreadCount']);
 
     Route::get('notifications', [RecruiterNotificationController::class, 'index']);
     Route::get('notifications/unread-count', [RecruiterNotificationController::class, 'unreadCount']);
@@ -496,6 +519,7 @@ Route::prefix('recruiter')->group(function () {
     Route::get('wallet/transactions', [RecruiterWalletController::class, 'transactions']);
 
     Route::get('unlocks', [RecruiterUnlockController::class, 'index']);
+    Route::post('unlocks', [RecruiterUnlockController::class, 'store']);
     Route::get('unlocks/stats', [RecruiterUnlockController::class, 'stats']);
     Route::get('unlocks/chart', [RecruiterUnlockController::class, 'chart']);
 

@@ -151,6 +151,7 @@ export function WithdrawPage() {
   const [error, setError] = useState("");
 
   const available = Number(summary?.available_balance ?? 0);
+  const minimumWithdraw = Number(summary?.minimum_withdraw ?? 500);
 
   const loadSummary = useCallback(
     async (targetPage = page) => {
@@ -192,8 +193,8 @@ export function WithdrawPage() {
 
     if (!form.amount || Number.isNaN(amount)) {
       nextErrors.amount = "Enter a valid withdrawal amount.";
-    } else if (amount < 500) {
-      nextErrors.amount = "Minimum withdrawal amount is ₹500.";
+    } else if (amount < minimumWithdraw) {
+      nextErrors.amount = `Minimum withdrawal amount is ${money(minimumWithdraw)}.`;
     } else if (amount > available) {
       nextErrors.amount = `Amount cannot exceed your available balance of ${money(available)}.`;
     }
@@ -311,7 +312,8 @@ export function WithdrawPage() {
             >
               <h3 className="font-semibold">Request withdrawal</h3>
               <p className="text-sm text-muted-foreground">
-                Withdrawals are processed after review. Minimum request amount is ₹500.
+                Withdrawals are processed after review. Minimum request amount is{" "}
+                {money(minimumWithdraw)}.
               </p>
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -319,9 +321,9 @@ export function WithdrawPage() {
                   <Input
                     id="amount"
                     type="number"
-                    min={500}
+                    min={minimumWithdraw}
                     step="1"
-                    placeholder="e.g. 5000"
+                    placeholder={`e.g. ${Math.max(minimumWithdraw * 2, 1000)}`}
                     value={form.amount}
                     onChange={(event) => update("amount", event.target.value)}
                     aria-invalid={!!errors.amount}
@@ -331,7 +333,7 @@ export function WithdrawPage() {
                       errors.amount ? "text-xs text-destructive" : "text-xs text-muted-foreground"
                     }
                   >
-                    {errors.amount || `Min ₹500 · Available ${money(available)}`}
+                    {errors.amount || `Min ${money(minimumWithdraw)} · Available ${money(available)}`}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -419,7 +421,7 @@ export function WithdrawPage() {
             <div className="rounded-2xl border border-border bg-primary-soft/40 p-6">
               <h4 className="font-semibold">Payout details</h4>
               <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li>• Minimum withdrawal amount is ₹500.</li>
+                <li>• Minimum withdrawal amount is {money(minimumWithdraw)}.</li>
                 <li>• Bank name and account number are required.</li>
                 <li>• Requests remain pending until approved by finance.</li>
                 <li>• Rejected requests include admin remarks when provided.</li>
