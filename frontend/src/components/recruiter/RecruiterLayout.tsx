@@ -169,8 +169,12 @@ export function RecruiterLayout({
       return;
     }
 
-    if (user && !["opportunity_provider", "admin", "hr"].includes(user.role)) {
-      router.navigate({ to: "/dashboard" });
+    if (user && user.role !== "opportunity_provider") {
+      if (user.role === "admin") {
+        router.navigate({ to: "/admin" });
+      } else {
+        router.navigate({ to: "/dashboard" });
+      }
       return;
     }
 

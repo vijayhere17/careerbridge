@@ -25,33 +25,26 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminJobSeekersRouteImport } from './routes/admin/job-seekers'
+import { Route as AdminMentorsRouteImport } from './routes/admin/mentors'
+import { Route as AdminRecruitersRouteImport } from './routes/admin/recruiters'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as CompaniesSlugRouteImport } from './routes/companies.$slug'
 import { Route as DomainsSlugRouteImport } from './routes/domains.$slug'
-import { Route as HrIndexRouteImport } from './routes/hr/index'
-import { Route as HrApplicationsRouteImport } from './routes/hr/applications'
-import { Route as HrCandidatesRouteImport } from './routes/hr/candidates'
-import { Route as HrCompanyRouteImport } from './routes/hr/company'
-import { Route as HrInterviewsRouteImport } from './routes/hr/interviews'
-import { Route as HrJobsRouteImport } from './routes/hr/jobs'
-import { Route as HrNotificationsRouteImport } from './routes/hr/notifications'
-import { Route as HrPipelineRouteImport } from './routes/hr/pipeline'
-import { Route as HrReportsRouteImport } from './routes/hr/reports'
-import { Route as HrSettingsRouteImport } from './routes/hr/settings'
 import { Route as MentorsIdRouteImport } from './routes/mentors.$id'
 import { Route as RecruiterIndexRouteImport } from './routes/recruiter/index'
 import { Route as RecruiterApplicationsRouteImport } from './routes/recruiter/applications'
 import { Route as RecruiterManagePostsRouteImport } from './routes/recruiter/manage-posts'
 import { Route as RecruiterNotificationsRouteImport } from './routes/recruiter/notifications'
+import { Route as RecruiterOnboardingRouteImport } from './routes/recruiter/onboarding'
 import { Route as RecruiterPostNewRouteImport } from './routes/recruiter/post-new'
 import { Route as RecruiterProfileRouteImport } from './routes/recruiter/profile'
 import { Route as RecruiterSettingsRouteImport } from './routes/recruiter/settings'
 import { Route as RecruiterUnlockEarningsRouteImport } from './routes/recruiter/unlock-earnings'
 import { Route as RecruiterWalletRouteImport } from './routes/recruiter/wallet'
 import { Route as RecruiterWithdrawRouteImport } from './routes/recruiter/withdraw'
-import { Route as RecruiterOnboardingRouteImport } from './routes/recruiter/onboarding'
-import { Route as HrCandidatesIdRouteImport } from './routes/hr/candidates.$id'
-import { Route as HrJobsCreateRouteImport } from './routes/hr/jobs.create'
-import { Route as HrJobsIdEditRouteImport } from './routes/hr/jobs.$id.edit'
+import { Route as AdminRecruitersUserIdRouteImport } from './routes/admin/recruiters.$userId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -133,6 +126,31 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminJobSeekersRoute = AdminJobSeekersRouteImport.update({
+  id: '/admin/job-seekers',
+  path: '/admin/job-seekers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMentorsRoute = AdminMentorsRouteImport.update({
+  id: '/admin/mentors',
+  path: '/admin/mentors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRecruitersRoute = AdminRecruitersRouteImport.update({
+  id: '/admin/recruiters',
+  path: '/admin/recruiters',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesSlugRoute = CompaniesSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -142,56 +160,6 @@ const DomainsSlugRoute = DomainsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => DomainsRoute,
-} as any)
-const HrIndexRoute = HrIndexRouteImport.update({
-  id: '/hr/',
-  path: '/hr/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrApplicationsRoute = HrApplicationsRouteImport.update({
-  id: '/hr/applications',
-  path: '/hr/applications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrCandidatesRoute = HrCandidatesRouteImport.update({
-  id: '/hr/candidates',
-  path: '/hr/candidates',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrCompanyRoute = HrCompanyRouteImport.update({
-  id: '/hr/company',
-  path: '/hr/company',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrInterviewsRoute = HrInterviewsRouteImport.update({
-  id: '/hr/interviews',
-  path: '/hr/interviews',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrJobsRoute = HrJobsRouteImport.update({
-  id: '/hr/jobs',
-  path: '/hr/jobs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrNotificationsRoute = HrNotificationsRouteImport.update({
-  id: '/hr/notifications',
-  path: '/hr/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrPipelineRoute = HrPipelineRouteImport.update({
-  id: '/hr/pipeline',
-  path: '/hr/pipeline',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrReportsRoute = HrReportsRouteImport.update({
-  id: '/hr/reports',
-  path: '/hr/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrSettingsRoute = HrSettingsRouteImport.update({
-  id: '/hr/settings',
-  path: '/hr/settings',
-  getParentRoute: () => rootRouteImport,
 } as any)
 const MentorsIdRoute = MentorsIdRouteImport.update({
   id: '/$id',
@@ -216,6 +184,11 @@ const RecruiterManagePostsRoute = RecruiterManagePostsRouteImport.update({
 const RecruiterNotificationsRoute = RecruiterNotificationsRouteImport.update({
   id: '/recruiter/notifications',
   path: '/recruiter/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecruiterOnboardingRoute = RecruiterOnboardingRouteImport.update({
+  id: '/recruiter/onboarding',
+  path: '/recruiter/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecruiterPostNewRoute = RecruiterPostNewRouteImport.update({
@@ -248,25 +221,10 @@ const RecruiterWithdrawRoute = RecruiterWithdrawRouteImport.update({
   path: '/recruiter/withdraw',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RecruiterOnboardingRoute = RecruiterOnboardingRouteImport.update({
-  id: '/recruiter/onboarding',
-  path: '/recruiter/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrCandidatesIdRoute = HrCandidatesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => HrCandidatesRoute,
-} as any)
-const HrJobsCreateRoute = HrJobsCreateRouteImport.update({
-  id: '/create',
-  path: '/create',
-  getParentRoute: () => HrJobsRoute,
-} as any)
-const HrJobsIdEditRoute = HrJobsIdEditRouteImport.update({
-  id: '/$id/edit',
-  path: '/$id/edit',
-  getParentRoute: () => HrJobsRoute,
+const AdminRecruitersUserIdRoute = AdminRecruitersUserIdRouteImport.update({
+  id: '/$userId',
+  path: '/$userId',
+  getParentRoute: () => AdminRecruitersRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -286,33 +244,26 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/job-seekers': typeof AdminJobSeekersRoute
+  '/admin/mentors': typeof AdminMentorsRoute
+  '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
-  '/hr/applications': typeof HrApplicationsRoute
-  '/hr/candidates': typeof HrCandidatesRouteWithChildren
-  '/hr/company': typeof HrCompanyRoute
-  '/hr/interviews': typeof HrInterviewsRoute
-  '/hr/jobs': typeof HrJobsRouteWithChildren
-  '/hr/notifications': typeof HrNotificationsRoute
-  '/hr/pipeline': typeof HrPipelineRoute
-  '/hr/reports': typeof HrReportsRoute
-  '/hr/settings': typeof HrSettingsRoute
   '/mentors/$id': typeof MentorsIdRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
   '/recruiter/profile': typeof RecruiterProfileRoute
   '/recruiter/settings': typeof RecruiterSettingsRoute
   '/recruiter/unlock-earnings': typeof RecruiterUnlockEarningsRoute
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
-  '/hr/': typeof HrIndexRoute
-  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
+  '/admin/': typeof AdminIndexRoute
   '/recruiter/': typeof RecruiterIndexRoute
-  '/hr/candidates/$id': typeof HrCandidatesIdRoute
-  '/hr/jobs/create': typeof HrJobsCreateRoute
-  '/hr/jobs/$id/edit': typeof HrJobsIdEditRoute
+  '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -331,33 +282,26 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/job-seekers': typeof AdminJobSeekersRoute
+  '/admin/mentors': typeof AdminMentorsRoute
+  '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
-  '/hr/applications': typeof HrApplicationsRoute
-  '/hr/candidates': typeof HrCandidatesRouteWithChildren
-  '/hr/company': typeof HrCompanyRoute
-  '/hr/interviews': typeof HrInterviewsRoute
-  '/hr/jobs': typeof HrJobsRouteWithChildren
-  '/hr/notifications': typeof HrNotificationsRoute
-  '/hr/pipeline': typeof HrPipelineRoute
-  '/hr/reports': typeof HrReportsRoute
-  '/hr/settings': typeof HrSettingsRoute
   '/mentors/$id': typeof MentorsIdRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
   '/recruiter/profile': typeof RecruiterProfileRoute
   '/recruiter/settings': typeof RecruiterSettingsRoute
   '/recruiter/unlock-earnings': typeof RecruiterUnlockEarningsRoute
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
-  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
-  '/hr': typeof HrIndexRoute
+  '/admin': typeof AdminIndexRoute
   '/recruiter': typeof RecruiterIndexRoute
-  '/hr/candidates/$id': typeof HrCandidatesIdRoute
-  '/hr/jobs/create': typeof HrJobsCreateRoute
-  '/hr/jobs/$id/edit': typeof HrJobsIdEditRoute
+  '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -377,33 +321,26 @@ export interface FileRoutesById {
   '/services': typeof ServicesRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/job-seekers': typeof AdminJobSeekersRoute
+  '/admin/mentors': typeof AdminMentorsRoute
+  '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
+  '/admin/settings': typeof AdminSettingsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
-  '/hr/applications': typeof HrApplicationsRoute
-  '/hr/candidates': typeof HrCandidatesRouteWithChildren
-  '/hr/company': typeof HrCompanyRoute
-  '/hr/interviews': typeof HrInterviewsRoute
-  '/hr/jobs': typeof HrJobsRouteWithChildren
-  '/hr/notifications': typeof HrNotificationsRoute
-  '/hr/pipeline': typeof HrPipelineRoute
-  '/hr/reports': typeof HrReportsRoute
-  '/hr/settings': typeof HrSettingsRoute
   '/mentors/$id': typeof MentorsIdRoute
   '/recruiter/applications': typeof RecruiterApplicationsRoute
   '/recruiter/manage-posts': typeof RecruiterManagePostsRoute
   '/recruiter/notifications': typeof RecruiterNotificationsRoute
+  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
   '/recruiter/post-new': typeof RecruiterPostNewRoute
   '/recruiter/profile': typeof RecruiterProfileRoute
   '/recruiter/settings': typeof RecruiterSettingsRoute
   '/recruiter/unlock-earnings': typeof RecruiterUnlockEarningsRoute
   '/recruiter/wallet': typeof RecruiterWalletRoute
   '/recruiter/withdraw': typeof RecruiterWithdrawRoute
-  '/hr/': typeof HrIndexRoute
-  '/recruiter/onboarding': typeof RecruiterOnboardingRoute
+  '/admin/': typeof AdminIndexRoute
   '/recruiter/': typeof RecruiterIndexRoute
-  '/hr/candidates/$id': typeof HrCandidatesIdRoute
-  '/hr/jobs/create': typeof HrJobsCreateRoute
-  '/hr/jobs/$id/edit': typeof HrJobsIdEditRoute
+  '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -424,33 +361,26 @@ export interface FileRouteTypes {
     | '/services'
     | '/signup'
     | '/sitemap.xml'
+    | '/admin/job-seekers'
+    | '/admin/mentors'
+    | '/admin/recruiters'
+    | '/admin/settings'
     | '/companies/$slug'
     | '/domains/$slug'
-    | '/hr/applications'
-    | '/hr/candidates'
-    | '/hr/company'
-    | '/hr/interviews'
-    | '/hr/jobs'
-    | '/hr/notifications'
-    | '/hr/pipeline'
-    | '/hr/reports'
-    | '/hr/settings'
     | '/mentors/$id'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
     | '/recruiter/notifications'
+    | '/recruiter/onboarding'
     | '/recruiter/post-new'
     | '/recruiter/profile'
     | '/recruiter/settings'
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
-    | '/recruiter/onboarding'
-    | '/hr/'
+    | '/admin/'
     | '/recruiter/'
-    | '/hr/candidates/$id'
-    | '/hr/jobs/create'
-    | '/hr/jobs/$id/edit'
+    | '/admin/recruiters/$userId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -469,33 +399,26 @@ export interface FileRouteTypes {
     | '/services'
     | '/signup'
     | '/sitemap.xml'
+    | '/admin/job-seekers'
+    | '/admin/mentors'
+    | '/admin/recruiters'
+    | '/admin/settings'
     | '/companies/$slug'
     | '/domains/$slug'
-    | '/hr/applications'
-    | '/hr/candidates'
-    | '/hr/company'
-    | '/hr/interviews'
-    | '/hr/jobs'
-    | '/hr/notifications'
-    | '/hr/pipeline'
-    | '/hr/reports'
-    | '/hr/settings'
     | '/mentors/$id'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
     | '/recruiter/notifications'
+    | '/recruiter/onboarding'
     | '/recruiter/post-new'
     | '/recruiter/profile'
     | '/recruiter/settings'
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
-    | '/recruiter/onboarding'
-    | '/hr'
+    | '/admin'
     | '/recruiter'
-    | '/hr/candidates/$id'
-    | '/hr/jobs/create'
-    | '/hr/jobs/$id/edit'
+    | '/admin/recruiters/$userId'
   id:
     | '__root__'
     | '/'
@@ -514,33 +437,26 @@ export interface FileRouteTypes {
     | '/services'
     | '/signup'
     | '/sitemap.xml'
+    | '/admin/job-seekers'
+    | '/admin/mentors'
+    | '/admin/recruiters'
+    | '/admin/settings'
     | '/companies/$slug'
     | '/domains/$slug'
-    | '/hr/applications'
-    | '/hr/candidates'
-    | '/hr/company'
-    | '/hr/interviews'
-    | '/hr/jobs'
-    | '/hr/notifications'
-    | '/hr/pipeline'
-    | '/hr/reports'
-    | '/hr/settings'
     | '/mentors/$id'
     | '/recruiter/applications'
     | '/recruiter/manage-posts'
     | '/recruiter/notifications'
+    | '/recruiter/onboarding'
     | '/recruiter/post-new'
     | '/recruiter/profile'
     | '/recruiter/settings'
     | '/recruiter/unlock-earnings'
     | '/recruiter/wallet'
     | '/recruiter/withdraw'
-    | '/recruiter/onboarding'
-    | '/hr/'
+    | '/admin/'
     | '/recruiter/'
-    | '/hr/candidates/$id'
-    | '/hr/jobs/create'
-    | '/hr/jobs/$id/edit'
+    | '/admin/recruiters/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -560,26 +476,21 @@ export interface RootRouteChildren {
   ServicesRoute: typeof ServicesRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  HrApplicationsRoute: typeof HrApplicationsRoute
-  HrCandidatesRoute: typeof HrCandidatesRouteWithChildren
-  HrCompanyRoute: typeof HrCompanyRoute
-  HrInterviewsRoute: typeof HrInterviewsRoute
-  HrJobsRoute: typeof HrJobsRouteWithChildren
-  HrNotificationsRoute: typeof HrNotificationsRoute
-  HrPipelineRoute: typeof HrPipelineRoute
-  HrReportsRoute: typeof HrReportsRoute
-  HrSettingsRoute: typeof HrSettingsRoute
+  AdminJobSeekersRoute: typeof AdminJobSeekersRoute
+  AdminMentorsRoute: typeof AdminMentorsRoute
+  AdminRecruitersRoute: typeof AdminRecruitersRouteWithChildren
+  AdminSettingsRoute: typeof AdminSettingsRoute
   RecruiterApplicationsRoute: typeof RecruiterApplicationsRoute
   RecruiterManagePostsRoute: typeof RecruiterManagePostsRoute
   RecruiterNotificationsRoute: typeof RecruiterNotificationsRoute
+  RecruiterOnboardingRoute: typeof RecruiterOnboardingRoute
   RecruiterPostNewRoute: typeof RecruiterPostNewRoute
   RecruiterProfileRoute: typeof RecruiterProfileRoute
   RecruiterSettingsRoute: typeof RecruiterSettingsRoute
   RecruiterUnlockEarningsRoute: typeof RecruiterUnlockEarningsRoute
   RecruiterWalletRoute: typeof RecruiterWalletRoute
   RecruiterWithdrawRoute: typeof RecruiterWithdrawRoute
-  RecruiterOnboardingRoute: typeof RecruiterOnboardingRoute
-  HrIndexRoute: typeof HrIndexRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   RecruiterIndexRoute: typeof RecruiterIndexRoute
 }
 
@@ -697,6 +608,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/job-seekers': {
+      id: '/admin/job-seekers'
+      path: '/admin/job-seekers'
+      fullPath: '/admin/job-seekers'
+      preLoaderRoute: typeof AdminJobSeekersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/mentors': {
+      id: '/admin/mentors'
+      path: '/admin/mentors'
+      fullPath: '/admin/mentors'
+      preLoaderRoute: typeof AdminMentorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/recruiters': {
+      id: '/admin/recruiters'
+      path: '/admin/recruiters'
+      fullPath: '/admin/recruiters'
+      preLoaderRoute: typeof AdminRecruitersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/companies/$slug': {
       id: '/companies/$slug'
       path: '/$slug'
@@ -710,76 +656,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/domains/$slug'
       preLoaderRoute: typeof DomainsSlugRouteImport
       parentRoute: typeof DomainsRoute
-    }
-    '/hr/': {
-      id: '/hr/'
-      path: '/hr'
-      fullPath: '/hr/'
-      preLoaderRoute: typeof HrIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/applications': {
-      id: '/hr/applications'
-      path: '/hr/applications'
-      fullPath: '/hr/applications'
-      preLoaderRoute: typeof HrApplicationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/candidates': {
-      id: '/hr/candidates'
-      path: '/hr/candidates'
-      fullPath: '/hr/candidates'
-      preLoaderRoute: typeof HrCandidatesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/company': {
-      id: '/hr/company'
-      path: '/hr/company'
-      fullPath: '/hr/company'
-      preLoaderRoute: typeof HrCompanyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/interviews': {
-      id: '/hr/interviews'
-      path: '/hr/interviews'
-      fullPath: '/hr/interviews'
-      preLoaderRoute: typeof HrInterviewsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/jobs': {
-      id: '/hr/jobs'
-      path: '/hr/jobs'
-      fullPath: '/hr/jobs'
-      preLoaderRoute: typeof HrJobsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/notifications': {
-      id: '/hr/notifications'
-      path: '/hr/notifications'
-      fullPath: '/hr/notifications'
-      preLoaderRoute: typeof HrNotificationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/pipeline': {
-      id: '/hr/pipeline'
-      path: '/hr/pipeline'
-      fullPath: '/hr/pipeline'
-      preLoaderRoute: typeof HrPipelineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/reports': {
-      id: '/hr/reports'
-      path: '/hr/reports'
-      fullPath: '/hr/reports'
-      preLoaderRoute: typeof HrReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/settings': {
-      id: '/hr/settings'
-      path: '/hr/settings'
-      fullPath: '/hr/settings'
-      preLoaderRoute: typeof HrSettingsRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/mentors/$id': {
       id: '/mentors/$id'
@@ -814,6 +690,13 @@ declare module '@tanstack/react-router' {
       path: '/recruiter/notifications'
       fullPath: '/recruiter/notifications'
       preLoaderRoute: typeof RecruiterNotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recruiter/onboarding': {
+      id: '/recruiter/onboarding'
+      path: '/recruiter/onboarding'
+      fullPath: '/recruiter/onboarding'
+      preLoaderRoute: typeof RecruiterOnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recruiter/post-new': {
@@ -858,33 +741,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruiterWithdrawRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/recruiter/onboarding': {
-      id: '/recruiter/onboarding'
-      path: '/recruiter/onboarding'
-      fullPath: '/recruiter/onboarding'
-      preLoaderRoute: typeof RecruiterOnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr/candidates/$id': {
-      id: '/hr/candidates/$id'
-      path: '/$id'
-      fullPath: '/hr/candidates/$id'
-      preLoaderRoute: typeof HrCandidatesIdRouteImport
-      parentRoute: typeof HrCandidatesRoute
-    }
-    '/hr/jobs/create': {
-      id: '/hr/jobs/create'
-      path: '/create'
-      fullPath: '/hr/jobs/create'
-      preLoaderRoute: typeof HrJobsCreateRouteImport
-      parentRoute: typeof HrJobsRoute
-    }
-    '/hr/jobs/$id/edit': {
-      id: '/hr/jobs/$id/edit'
-      path: '/$id/edit'
-      fullPath: '/hr/jobs/$id/edit'
-      preLoaderRoute: typeof HrJobsIdEditRouteImport
-      parentRoute: typeof HrJobsRoute
+    '/admin/recruiters/$userId': {
+      id: '/admin/recruiters/$userId'
+      path: '/$userId'
+      fullPath: '/admin/recruiters/$userId'
+      preLoaderRoute: typeof AdminRecruitersUserIdRouteImport
+      parentRoute: typeof AdminRecruitersRoute
     }
   }
 }
@@ -923,30 +785,17 @@ const MentorsRouteChildren: MentorsRouteChildren = {
 const MentorsRouteWithChildren =
   MentorsRoute._addFileChildren(MentorsRouteChildren)
 
-interface HrCandidatesRouteChildren {
-  HrCandidatesIdRoute: typeof HrCandidatesIdRoute
+interface AdminRecruitersRouteChildren {
+  AdminRecruitersUserIdRoute: typeof AdminRecruitersUserIdRoute
 }
 
-const HrCandidatesRouteChildren: HrCandidatesRouteChildren = {
-  HrCandidatesIdRoute: HrCandidatesIdRoute,
+const AdminRecruitersRouteChildren: AdminRecruitersRouteChildren = {
+  AdminRecruitersUserIdRoute: AdminRecruitersUserIdRoute,
 }
 
-const HrCandidatesRouteWithChildren = HrCandidatesRoute._addFileChildren(
-  HrCandidatesRouteChildren,
+const AdminRecruitersRouteWithChildren = AdminRecruitersRoute._addFileChildren(
+  AdminRecruitersRouteChildren,
 )
-
-interface HrJobsRouteChildren {
-  HrJobsCreateRoute: typeof HrJobsCreateRoute
-  HrJobsIdEditRoute: typeof HrJobsIdEditRoute
-}
-
-const HrJobsRouteChildren: HrJobsRouteChildren = {
-  HrJobsCreateRoute: HrJobsCreateRoute,
-  HrJobsIdEditRoute: HrJobsIdEditRoute,
-}
-
-const HrJobsRouteWithChildren =
-  HrJobsRoute._addFileChildren(HrJobsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -965,26 +814,21 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesRoute: ServicesRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  HrApplicationsRoute: HrApplicationsRoute,
-  HrCandidatesRoute: HrCandidatesRouteWithChildren,
-  HrCompanyRoute: HrCompanyRoute,
-  HrInterviewsRoute: HrInterviewsRoute,
-  HrJobsRoute: HrJobsRouteWithChildren,
-  HrNotificationsRoute: HrNotificationsRoute,
-  HrPipelineRoute: HrPipelineRoute,
-  HrReportsRoute: HrReportsRoute,
-  HrSettingsRoute: HrSettingsRoute,
+  AdminJobSeekersRoute: AdminJobSeekersRoute,
+  AdminMentorsRoute: AdminMentorsRoute,
+  AdminRecruitersRoute: AdminRecruitersRouteWithChildren,
+  AdminSettingsRoute: AdminSettingsRoute,
   RecruiterApplicationsRoute: RecruiterApplicationsRoute,
   RecruiterManagePostsRoute: RecruiterManagePostsRoute,
   RecruiterNotificationsRoute: RecruiterNotificationsRoute,
+  RecruiterOnboardingRoute: RecruiterOnboardingRoute,
   RecruiterPostNewRoute: RecruiterPostNewRoute,
   RecruiterProfileRoute: RecruiterProfileRoute,
   RecruiterSettingsRoute: RecruiterSettingsRoute,
   RecruiterUnlockEarningsRoute: RecruiterUnlockEarningsRoute,
   RecruiterWalletRoute: RecruiterWalletRoute,
   RecruiterWithdrawRoute: RecruiterWithdrawRoute,
-  RecruiterOnboardingRoute: RecruiterOnboardingRoute,
-  HrIndexRoute: HrIndexRoute,
+  AdminIndexRoute: AdminIndexRoute,
   RecruiterIndexRoute: RecruiterIndexRoute,
 }
 export const routeTree = rootRouteImport

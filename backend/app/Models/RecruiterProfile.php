@@ -5,18 +5,24 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RecruiterProfile extends Model
 {
     use HasFactory;
 
     public const APPROVAL_PENDING = 'Pending';
+
     public const APPROVAL_APPROVED = 'Approved';
+
     public const APPROVAL_REJECTED = 'Rejected';
+
+    public const APPROVAL_CHANGES_REQUESTED = 'ChangesRequested';
+
+    public const APPROVAL_SUSPENDED = 'Suspended';
 
     public const TYPES = [
         'company_recruiter',
-        'hr_agency',
         'startup',
         'consultancy',
         'individual_recruiter',
@@ -50,8 +56,13 @@ class RecruiterProfile extends Model
         'recruiter_type',
         'approval_status',
         'admin_remarks',
+        'rejection_reason',
+        'required_changes',
+        'internal_notes',
         'submitted_at',
         'reviewed_at',
+        'reviewed_by',
+        'suspended_at',
         'profile_completion',
         'onboarding_step',
     ];
@@ -61,6 +72,7 @@ class RecruiterProfile extends Model
         return [
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'suspended_at' => 'datetime',
             'profile_completion' => 'integer',
         ];
     }
@@ -68,6 +80,16 @@ class RecruiterProfile extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    public function adminActions(): HasMany
+    {
+        return $this->hasMany(RecruiterAdminAction::class)->latest();
     }
 
     public function logoUrl(): ?string
@@ -106,6 +128,16 @@ class RecruiterProfile extends Model
         return $this->approval_status === self::APPROVAL_PENDING;
     }
 
+    public function isChangesRequested(): bool
+    {
+        return $this->approval_status === self::APPROVAL_CHANGES_REQUESTED;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->approval_status === self::APPROVAL_SUSPENDED;
+    }
+
     public function hasCompletedProfile(): bool
     {
         foreach (self::requiredProfileFields() as $field) {
@@ -123,8 +155,6 @@ class RecruiterProfile extends Model
     }
 
     /**
-     * Fields required to finish the company profile step (before type selection).
-     *
      * @return array<int, string>
      */
     public static function requiredProfileFields(): array
@@ -174,5 +204,12 @@ class RecruiterProfile extends Model
         $this->profile_completion = min(100, $percent);
 
         return $this->profile_completion;
+    }
+
+    public function locationLabel(): ?string
+    {
+        $parts = array_filter([$this->city, $this->state, $this->country]);
+
+        return $parts ? implode(', ', $parts) : null;
     }
 }

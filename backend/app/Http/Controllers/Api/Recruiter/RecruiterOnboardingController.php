@@ -279,9 +279,11 @@ class RecruiterOnboardingController extends RecruiterBaseController
         $profile->recruiter_type = $request->input('recruiter_type');
         $profile->recalculateCompletion();
 
-        if ($profile->isRejected()) {
+        if ($profile->isRejected() || $profile->isChangesRequested()) {
             $profile->approval_status = RecruiterProfile::APPROVAL_PENDING;
             $profile->admin_remarks = null;
+            $profile->rejection_reason = null;
+            $profile->required_changes = null;
             $profile->reviewed_at = null;
         }
 
@@ -313,8 +315,8 @@ class RecruiterOnboardingController extends RecruiterBaseController
 
         $profile = $this->onboarding->ensureProfile($user);
 
-        if (! $profile->isRejected() && ! $profile->isPending()) {
-            return $this->forbidden('Only rejected or pending profiles can be resubmitted.');
+        if (! $profile->isRejected() && ! $profile->isPending() && ! $profile->isChangesRequested()) {
+            return $this->forbidden('Only rejected, changes-requested, or pending profiles can be resubmitted.');
         }
 
         if (! $this->onboarding->isFullyVerified($user)
@@ -325,6 +327,8 @@ class RecruiterOnboardingController extends RecruiterBaseController
 
         $profile->approval_status = RecruiterProfile::APPROVAL_PENDING;
         $profile->admin_remarks = null;
+        $profile->rejection_reason = null;
+        $profile->required_changes = null;
         $profile->submitted_at = now();
         $profile->reviewed_at = null;
         $profile->onboarding_step = 'pending_approval';
@@ -338,43 +342,9 @@ class RecruiterOnboardingController extends RecruiterBaseController
 
     public function review(Request $request, int $userId)
     {
-        [$admin, $error] = $this->recruiterUser($request, false);
-        if ($error) {
-            return $error;
-        }
-
-        if ($admin->role !== 'admin') {
-            return $this->forbidden('Admin access required.');
-        }
-
-        $validator = Validator::make($request->all(), [
-            'approval_status' => 'required|in:Approved,Rejected',
-            'admin_remarks' => 'nullable|string|max:2000',
-        ]);
-
-        if ($validator->fails()) {
-            return $this->validationError($validator->errors());
-        }
-
-        $target = \App\Models\User::where('id', $userId)
-            ->where('role', 'opportunity_provider')
-            ->first();
-
-        if (! $target) {
-            return $this->notFound('Recruiter not found.');
-        }
-
-        $profile = $this->onboarding->ensureProfile($target);
-        $profile->approval_status = $request->input('approval_status');
-        $profile->admin_remarks = $request->input('admin_remarks');
-        $profile->reviewed_at = now();
-        $profile->onboarding_step = $profile->isApproved() ? 'complete' : 'rejected';
-        $profile->save();
-
-        return $this->success(
-            $this->onboarding->statusPayload($target->fresh()),
-            'Recruiter approval status updated successfully.'
-        );
+        // Keep legacy route; delegate to the Admin review implementation.
+        return app(\App\Http\Controllers\Api\Admin\AdminRecruiterController::class)
+            ->review($request, $userId);
     }
 
     private function issueOtp(string $identifier, string $purpose): array

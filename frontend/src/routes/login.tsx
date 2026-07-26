@@ -24,13 +24,11 @@ export const Route = createFileRoute("/login")({ component: LoginPage });
 function getRoleLabel(role: AuthUser["role"]): string {
   switch (role) {
     case "seeker":
-      return "Candidate";
+      return "Job Seeker";
     case "mentor":
       return "Mentor";
     case "opportunity_provider":
-      return "Opportunity Provider";
-    case "hr":
-      return "HR Professional";
+      return "Recruiter";
     case "admin":
       return "Admin";
     default:
@@ -61,8 +59,8 @@ function LoginPage() {
       });
       setAuth(res.user, res.api_token);
       const redirectTo =
-        res.user.role === "hr"
-          ? "/hr"
+        res.user.role === "admin"
+          ? "/admin"
           : res.user.role === "opportunity_provider"
             ? onboardingRedirectPath(res.recruiter_onboarding)
             : "/dashboard";
@@ -75,9 +73,9 @@ function LoginPage() {
   };
 
   const ROLE_CARDS = [
-    { icon: GraduationCap, label: "Candidate", desc: "Find mentors & jobs" },
+    { icon: GraduationCap, label: "Job Seeker", desc: "Find mentors & jobs" },
     { icon: UsersRound, label: "Mentor", desc: "Guide & earn" },
-    { icon: Briefcase, label: "Opportunity Provider", desc: "Post & hire" },
+    { icon: Briefcase, label: "Recruiter", desc: "Post & hire" },
     { icon: ShieldCheck, label: "Admin", desc: "Manage platform" },
   ];
 

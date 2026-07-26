@@ -25,13 +25,15 @@ class DatabaseSeeder extends Seeder
         ]);
 
         User::updateOrCreate(
-            ['email' => 'hr@gmail.com'],
+            ['email' => 'admin@gmail.com'],
             [
-                'name' => 'HR Test',
-                'mobile' => '9999999999',
+                'name' => 'Platform Admin',
+                'mobile' => '9999999998',
                 'password' => Hash::make('12345678'),
-                'role' => 'hr',
+                'role' => 'admin',
                 'email_verified_at' => now(),
+                'verified_email' => true,
+                'api_token' => 'admin-dev-token',
             ]
         );
 
