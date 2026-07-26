@@ -60,16 +60,24 @@ class RecruiterOnboardingController extends RecruiterBaseController
             return $this->validationError($validator->errors());
         }
 
-        if (! $this->verifyOtp($user->email, 'recruiter_email_verification', $request->input('otp'))) {
+        if (! $this->verifyOtp($user->email, 'recruiter_email_verification', (string) $request->input('otp'))) {
             return $this->validationError(['otp' => ['The OTP is invalid or expired.']]);
         }
 
         $this->onboarding->syncEmailVerification($user, true);
+        $user->refresh();
 
-        return $this->success(
-            $this->onboarding->statusPayload($user->fresh()),
-            'Email verified successfully.'
-        );
+        $payload = $this->onboarding->statusPayload($user);
+
+        if (! ($payload['verified_email'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email verification could not be saved. Please try again.',
+                'data' => $payload,
+            ], 500);
+        }
+
+        return $this->success($payload, 'Email verified successfully.');
     }
 
     public function sendMobileOtp(Request $request)
@@ -110,16 +118,24 @@ class RecruiterOnboardingController extends RecruiterBaseController
             return $this->validationError(['mobile' => ['Mobile number is required before verification.']]);
         }
 
-        if (! $this->verifyOtp($user->mobile, 'recruiter_mobile_verification', $request->input('otp'))) {
+        if (! $this->verifyOtp($user->mobile, 'recruiter_mobile_verification', (string) $request->input('otp'))) {
             return $this->validationError(['otp' => ['The OTP is invalid or expired.']]);
         }
 
         $this->onboarding->syncMobileVerification($user, true);
+        $user->refresh();
 
-        return $this->success(
-            $this->onboarding->statusPayload($user->fresh()),
-            'Mobile verified successfully.'
-        );
+        $payload = $this->onboarding->statusPayload($user);
+
+        if (! ($payload['verified_mobile'] ?? false)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mobile verification could not be saved. Please try again.',
+                'data' => $payload,
+            ], 500);
+        }
+
+        return $this->success($payload, 'Mobile verified successfully.');
     }
 
     public function showProfile(Request $request)

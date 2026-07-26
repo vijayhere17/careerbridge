@@ -1,5 +1,5 @@
 import { Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -189,6 +189,24 @@ function stepIndex(step: UiStep): number {
   }
 }
 
+function normalizeStatus(next: RecruiterOnboardingStatus): RecruiterOnboardingStatus {
+  const verifiedEmail = Boolean(next.verified_email);
+  const verifiedMobile = Boolean(next.verified_mobile);
+  const verificationComplete =
+    Boolean(next.verification_complete) || (verifiedEmail && verifiedMobile);
+
+  return {
+    ...next,
+    verified_email: verifiedEmail,
+    verified_mobile: verifiedMobile,
+    verification_complete: verificationComplete,
+    profile_complete: Boolean(next.profile_complete),
+    type_selected: Boolean(next.type_selected),
+    can_access_dashboard: Boolean(next.can_access_dashboard),
+    can_post_opportunities: Boolean(next.can_post_opportunities),
+  };
+}
+
 export function RecruiterOnboardingPage() {
   const router = useRouter();
   const user = getStoredUser();
@@ -208,13 +226,15 @@ export function RecruiterOnboardingPage() {
   const [devEmailOtp, setDevEmailOtp] = useState("");
   const [devMobileOtp, setDevMobileOtp] = useState("");
   const [selectedType, setSelectedType] = useState<RecruiterType | null>(null);
+  const loadSeq = useRef(0);
 
   const queryStep = useMemo(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("step");
   }, []);
 
-  const applyStatus = (next: RecruiterOnboardingStatus) => {
+  const applyStatus = (raw: RecruiterOnboardingStatus) => {
+    const next = normalizeStatus(raw);
     setStatus(next);
     setForm((prev) => fromProfile(next.profile, prev));
     setLogoPreview(next.profile?.company_logo ?? null);
@@ -228,6 +248,12 @@ export function RecruiterOnboardingPage() {
     setUiStep(resolveUiStep(next, queryStep));
   };
 
+  const refreshStatus = async () => {
+    const res = await recruiterOnboardingService.status();
+    applyStatus(res.data);
+    return res.data;
+  };
+
   const load = async () => {
     const token = getAuthToken();
     if (!token) {
@@ -235,6 +261,7 @@ export function RecruiterOnboardingPage() {
       return;
     }
 
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError("");
     try {
@@ -243,17 +270,21 @@ export function RecruiterOnboardingPage() {
         recruiter_onboarding?: RecruiterOnboardingStatus | null;
       }>("/api/auth/user");
 
+      if (seq !== loadSeq.current) return;
+
       if (auth.user.role !== "opportunity_provider") {
         router.navigate({ to: "/dashboard" });
         return;
       }
 
       const res = await recruiterOnboardingService.status();
+      if (seq !== loadSeq.current) return;
       applyStatus(res.data);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       setError(apiErrorMessage(err, "Could not load onboarding status."));
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   };
 
@@ -289,9 +320,17 @@ export function RecruiterOnboardingPage() {
     setSaving(true);
     setError("");
     try {
+      // Invalidate any in-flight status loads so a stale response cannot undo verification.
+      loadSeq.current += 1;
       const res = await recruiterOnboardingService.verifyEmail(emailOtp);
       applyStatus(res.data);
       setEmailOtp("");
+      setDevEmailOtp("");
+      try {
+        await refreshStatus();
+      } catch {
+        /* keep verify response */
+      }
     } catch (err) {
       setError(apiErrorMessage(err, "Email OTP is invalid or expired."));
     } finally {
@@ -320,9 +359,17 @@ export function RecruiterOnboardingPage() {
     setSaving(true);
     setError("");
     try {
+      // Invalidate any in-flight status loads so a stale response cannot undo verification.
+      loadSeq.current += 1;
       const res = await recruiterOnboardingService.verifyMobile(mobileOtp);
       applyStatus(res.data);
       setMobileOtp("");
+      setDevMobileOtp("");
+      try {
+        await refreshStatus();
+      } catch {
+        /* keep verify response */
+      }
     } catch (err) {
       setError(apiErrorMessage(err, "Mobile OTP is invalid or expired."));
     } finally {
@@ -525,16 +572,15 @@ export function RecruiterOnboardingPage() {
                 </div>
               </div>
 
-              {status.verification_complete && (
-                <Button
-                  type="button"
-                  variant="brand"
-                  className="w-full"
-                  onClick={() => setUiStep("profile")}
-                >
-                  Continue to profile <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                type="button"
+                variant="brand"
+                className="w-full"
+                disabled={!status.verification_complete || saving}
+                onClick={() => setUiStep("profile")}
+              >
+                Continue to profile <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           )}
 
