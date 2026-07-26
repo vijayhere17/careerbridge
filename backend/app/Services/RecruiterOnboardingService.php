@@ -28,6 +28,8 @@ class RecruiterOnboardingService
             'verified_email' => $verified,
             'email_verified_at' => $verified ? ($user->email_verified_at ?? now()) : null,
         ])->save();
+
+        $user->refresh();
     }
 
     public function syncMobileVerification(User $user, bool $verified = true): void
@@ -36,16 +38,18 @@ class RecruiterOnboardingService
             'verified_mobile' => $verified,
             'mobile_verified_at' => $verified ? now() : null,
         ])->save();
+
+        $user->refresh();
     }
 
     public function isEmailVerified(User $user): bool
     {
-        return (bool) $user->verified_email || filled($user->email_verified_at);
+        return $user->verified_email === true || filled($user->email_verified_at);
     }
 
     public function isMobileVerified(User $user): bool
     {
-        return (bool) $user->verified_mobile || filled($user->mobile_verified_at);
+        return $user->verified_mobile === true || filled($user->mobile_verified_at);
     }
 
     public function isFullyVerified(User $user): bool
@@ -134,6 +138,9 @@ class RecruiterOnboardingService
      */
     public function statusPayload(User $user): array
     {
+        // Re-read verification flags from DB so OTP verify responses never return stale status.
+        $user->refresh();
+
         $profile = $this->ensureProfile($user);
         $profile = $this->refreshOnboardingStep($user, $profile);
 

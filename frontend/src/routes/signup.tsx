@@ -31,17 +31,29 @@ function StepBar({ current }: { current: number }) {
 
 function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
-  const chars = value.padEnd(6, "").split("").slice(0, 6);
+  const digits = value.replace(/\D/g, "").slice(0, 6);
+  const chars = Array.from({ length: 6 }, (_, i) => digits[i] ?? "");
 
   const handle = (i: number, val: string) => {
-    if (!/^\d?$/.test(val)) return;
-    const next = chars.map((c, idx) => (idx === i ? val : c));
-    onChange(next.join("").trimEnd());
-    if (val && i < 5) inputs.current[i + 1]?.focus();
+    const digit = val.replace(/\D/g, "").slice(-1);
+    const next = Array.from({ length: 6 }, (_, idx) => (idx === i ? digit : chars[idx]));
+    onChange(next.join(""));
+    if (digit && i < 5) inputs.current[i + 1]?.focus();
   };
 
   const handleKey = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !chars[i] && i > 0) {
+    if (e.key !== "Backspace") return;
+    if (chars[i]) {
+      const next = [...chars];
+      next[i] = "";
+      onChange(next.join(""));
+      return;
+    }
+    if (i > 0) {
+      e.preventDefault();
+      const next = [...chars];
+      next[i - 1] = "";
+      onChange(next.join(""));
       inputs.current[i - 1]?.focus();
     }
   };
@@ -50,22 +62,23 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     onChange(pasted);
-    inputs.current[Math.min(pasted.length, 5)]?.focus();
+    inputs.current[Math.min(Math.max(pasted.length, 1) - 1, 5)]?.focus();
   };
 
   return (
     <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-      {Array.from({ length: 6 }).map((_, i) => (
+      {chars.map((char, i) => (
         <input
           key={i}
           ref={(el) => { inputs.current[i] = el; }}
           type="text"
           inputMode="numeric"
+          autoComplete="one-time-code"
           maxLength={1}
-          value={chars[i] ?? ""}
+          value={char}
           onChange={(e) => handle(i, e.target.value)}
           onKeyDown={(e) => handleKey(i, e)}
-          className={`h-12 w-10 rounded-xl border text-center text-lg font-bold transition-all focus:outline-none focus:ring-2 focus:ring-ring ${chars[i] ? "border-primary bg-primary/5" : "border-border bg-background"}`}
+          className={`h-12 w-10 rounded-xl border text-center text-lg font-bold transition-all focus:outline-none focus:ring-2 focus:ring-ring ${char ? "border-primary bg-primary/5" : "border-border bg-background"}`}
         />
       ))}
     </div>
@@ -122,7 +135,8 @@ function SignupPage() {
       setAuth(r.user, r.api_token);
       setStep("role");
     } catch (err: any) {
-      setError(err?.message ?? "OTP is invalid or expired.");
+      const otpError = err?.errors?.otp?.[0];
+      setError(otpError ?? err?.message ?? "OTP is invalid or expired.");
     } finally {
       setSaving(false);
     }
