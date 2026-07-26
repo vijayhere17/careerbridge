@@ -67,8 +67,8 @@ type View = "list" | "profile" | "book" | "bookings" | "saved";
 
 
 
-const INDUSTRIES = ["All", "Technology", "E-Commerce", "Startups", "HR & Talent", "Design", "Finance", "Consulting"];
-const ROLES = ["All Roles", "Product Manager", "Software Engineer", "Data Scientist", "Designer", "HR", "Founder", "Engineering Manager"];
+const INDUSTRIES = ["All", "Technology", "E-Commerce", "Startups", "People & Talent", "Design", "Finance", "Consulting"];
+const ROLES = ["All Roles", "Product Manager", "Software Engineer", "Data Scientist", "Designer", "People Ops", "Founder", "Engineering Manager"];
 const EXPERIENCES = ["Any", "1–3 yrs", "3–6 yrs", "6–10 yrs", "10+ yrs"];
 const LANGUAGES = ["Any", "English", "Hindi", "Tamil", "Malayalam", "Kannada", "Marathi"];
 const SORT_OPTIONS = ["Top Rated", "Most Sessions", "Price: Low to High", "Price: High to Low", "Newest"];

@@ -42,16 +42,7 @@ class MentorServiceController extends Controller
             ->latest()
             ->get()
             ->map(function ($service) {
-                return [
-                    'id' => (string) $service->id,
-                    'title' => $service->title,
-                    'description' => $service->description ?? '',
-                    'type' => $service->session_type,
-                    'duration' => (int) $service->duration,
-                    'price' => (int) $service->price,
-                    'active' => $service->status === 'active',
-                    'bookings' => (int) $service->bookings_count,
-                ];
+                return $this->serviceData($service);
             });
 
         return response()->json([
@@ -69,23 +60,16 @@ class MentorServiceController extends Controller
             ], 401);
         }
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string|max:300',
-            'type' => 'required|in:Video Call,Audio Call,Chat',
-            'duration' => 'required|integer|in:15,30,45,60,90,120',
-            'price' => 'required|integer|min:1',
-            'active' => 'required|boolean',
-        ]);
+        $payload = $this->validatedServicePayload($request);
 
         $service = MentorService::create([
             'mentor_id' => $user->mentorProfile->id,
-            'title' => $validated['title'],
-            'description' => $validated['description'],
-            'session_type' => $validated['type'],
-            'duration' => $validated['duration'],
-            'price' => $validated['price'],
-            'status' => $validated['active'] ? 'active' : 'inactive',
+            'title' => $payload['title'],
+            'description' => $payload['description'],
+            'session_type' => $payload['type'],
+            'duration' => $payload['duration'],
+            'price' => $payload['price'],
+            'status' => $payload['active'] ? 'active' : 'inactive',
         ]);
 
         return response()->json([
@@ -115,22 +99,15 @@ class MentorServiceController extends Controller
             ], 404);
         }
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string|max:300',
-            'type' => 'required|in:Video Call,Audio Call,Chat',
-            'duration' => 'required|integer|in:15,30,45,60,90,120',
-            'price' => 'required|integer|min:1',
-            'active' => 'required|boolean',
-        ]);
+        $payload = $this->validatedServicePayload($request);
 
         $service->update([
-            'title' => $validated['title'],
-            'description' => $validated['description'],
-            'session_type' => $validated['type'],
-            'duration' => $validated['duration'],
-            'price' => $validated['price'],
-            'status' => $validated['active'] ? 'active' : 'inactive',
+            'title' => $payload['title'],
+            'description' => $payload['description'],
+            'session_type' => $payload['type'],
+            'duration' => $payload['duration'],
+            'price' => $payload['price'],
+            'status' => $payload['active'] ? 'active' : 'inactive',
         ]);
 
         return response()->json([
@@ -201,6 +178,26 @@ class MentorServiceController extends Controller
         ]);
     }
 
+    private function validatedServicePayload(Request $request): array
+    {
+        if (! $request->filled('type') && $request->filled('session_type')) {
+            $request->merge(['type' => $request->input('session_type')]);
+        }
+
+        if (! $request->has('active') && $request->filled('status')) {
+            $request->merge(['active' => $request->input('status') === 'active']);
+        }
+
+        return $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string|max:300',
+            'type' => 'required|in:Video Call,Audio Call,Chat',
+            'duration' => 'required|integer|in:15,30,45,60,90,120',
+            'price' => 'required|integer|min:1',
+            'active' => 'required|boolean',
+        ]);
+    }
+
     private function serviceData(MentorService $service): array
     {
         return [
@@ -208,9 +205,11 @@ class MentorServiceController extends Controller
             'title' => $service->title,
             'description' => $service->description ?? '',
             'type' => $service->session_type,
+            'session_type' => $service->session_type,
             'duration' => (int) $service->duration,
             'price' => (int) $service->price,
             'active' => $service->status === 'active',
+            'status' => $service->status,
             'bookings' => $service->bookings()->count(),
         ];
     }

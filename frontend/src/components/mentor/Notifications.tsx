@@ -48,10 +48,18 @@ useEffect(() => {
 
 const loadNotifications = async () => {
     try {
-        const response = await apiFetch("/mentor/notifications");
+        const response = await apiFetch<{
+          notifications: Notification[];
+          summary: Summary;
+        }>("/api/mentor/notifications");
 
-        setItems(response.notifications);
-        setSummary(response.summary);
+        setItems(response.notifications ?? []);
+        setSummary(response.summary ?? {
+          total: 0,
+          bookings: 0,
+          payments: 0,
+          unread: 0,
+        });
 
     } catch (error) {
         console.error(error);
@@ -60,8 +68,29 @@ const loadNotifications = async () => {
     }
 };
 
-  const markAllRead = () => {
-    setItems(items.map((item) => ({ ...item, read: true })));
+  const markAllRead = async () => {
+    try {
+      await apiFetch("/api/mentor/notifications/read-all", { method: "POST" });
+      setItems((prev) => prev.map((item) => ({ ...item, read: true })));
+      setSummary((prev) => ({ ...prev, unread: 0 }));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const markOneRead = async (id: string) => {
+    try {
+      await apiFetch(`/api/mentor/notifications/${id}/read`, { method: "POST" });
+      setItems((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, read: true } : item)),
+      );
+      setSummary((prev) => ({
+        ...prev,
+        unread: Math.max(0, prev.unread - 1),
+      }));
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const getIcon = (type: Notification["type"]) => {
@@ -205,7 +234,10 @@ const loadNotifications = async () => {
 
           <div
             key={item.id}
-            className={`flex items-start gap-4 border-b border-border p-5 transition hover:bg-muted/40 ${
+            onClick={() => {
+              if (!item.read) void markOneRead(item.id);
+            }}
+            className={`flex cursor-pointer items-start gap-4 border-b border-border p-5 transition hover:bg-muted/40 ${
               !item.read ? "bg-primary/5" : ""
             }`}
           >

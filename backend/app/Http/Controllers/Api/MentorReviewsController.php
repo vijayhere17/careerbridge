@@ -82,6 +82,23 @@ class MentorReviewsController extends Controller
             ];
         }
 
+        $topService = $reviews
+            ->groupBy(fn ($review) => $review->booking?->service?->title ?? 'Mentoring Session')
+            ->map(fn ($group) => [
+                'service' => $group->first()->booking?->service?->title ?? 'Mentoring Session',
+                'average' => round($group->avg('rating'), 1),
+                'count' => $group->count(),
+            ])
+            ->sortByDesc('average')
+            ->first();
+
+        $repeatClients = $reviews
+            ->groupBy('user_id')
+            ->filter(fn ($group) => $group->count() > 1)
+            ->count();
+
+        $uniqueClients = max($reviews->pluck('user_id')->unique()->count(), 1);
+
         return response()->json([
             'summary' => [
                 'average_rating' => $averageRating,
@@ -91,6 +108,15 @@ class MentorReviewsController extends Controller
             ],
 
             'distribution' => $distribution,
+
+            'insights' => [
+                'strongest_area' => $topService['service'] ?? 'Mentoring sessions',
+                'candidate_satisfaction' => $positivePercentage,
+                'repeat_client_percentage' => $totalReviews > 0
+                    ? round(($repeatClients / $uniqueClients) * 100)
+                    : 0,
+                'this_month_reviews' => $thisMonth,
+            ],
 
             'reviews' => MentorReviewResource::collection($reviews),
         ]);

@@ -15,6 +15,7 @@ use App\Models\MentorReview;
 use App\Models\MentorService;
 use App\Models\SavedMentor;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class MentorController extends Controller
@@ -30,7 +31,9 @@ class MentorController extends Controller
                 'skills',
                 'languages',
                 'reviews',
-            ]);
+            ])
+            ->where('onboarding_status', 'approved')
+            ->where('verified', true);
 
         if ($q = $request->query('q')) {
             $query->where(function ($b) use ($q) {
@@ -63,14 +66,14 @@ class MentorController extends Controller
         }
 
         if ($request->boolean('verifiedOnly')) {
-            $query->where('is_verified', true);
+            $query->where('verified', true);
         }
 
         $sort = $request->query('sort', 'rating');
         match ($sort) {
-            'sessions'   => $query->orderByDesc('total_sessions'),
-            'price_asc'  => $query->orderBy('min_price'),
-            'price_desc' => $query->orderByDesc('min_price'),
+            'sessions'   => $query->orderByDesc('session_count'),
+            'price_asc'  => $query->withMin('services', 'price')->orderBy('services_min_price'),
+            'price_desc' => $query->withMin('services', 'price')->orderByDesc('services_min_price'),
             default      => $query->orderByDesc('rating'),
         };
 
@@ -83,6 +86,10 @@ class MentorController extends Controller
 
     public function show(MentorProfile $mentor)
     {
+        if ($mentor->onboarding_status !== 'approved' || ! $mentor->verified) {
+            return response()->json(['message' => 'Mentor not found.'], 404);
+        }
+
         $mentor->load(['user', 'services', 'skills', 'languages', 'reviews']);
 
         return response()->json([
@@ -199,6 +206,14 @@ class MentorController extends Controller
         $mentor  = MentorProfile::findOrFail($request->input('mentor_id'));
         $service = MentorService::findOrFail($request->input('service_id'));
 
+        if ($mentor->onboarding_status !== 'approved' || ! $mentor->verified) {
+            return response()->json(['message' => 'This mentor is not available for booking.'], 422);
+        }
+
+        if ((int) $service->mentor_id !== (int) $mentor->id || $service->status !== 'active') {
+            return response()->json(['message' => 'Selected service is not available.'], 422);
+        }
+
         $booking = MentorBooking::create([
             'mentor_id'      => $mentor->id,
             'candidate_id'   => $user->id,
@@ -210,6 +225,16 @@ class MentorController extends Controller
             'status'         => 'pending',
             'payment_status' => 'escrow',
         ]);
+
+        if ($mentor->user) {
+            app(NotificationService::class)->notify(
+                $mentor->user,
+                'New booking request',
+                ($user->name ?: 'A candidate') . ' requested a session for ' . ($service->title ?: 'mentoring') . '.',
+                'booking',
+                ['booking_id' => $booking->id, 'status' => 'pending']
+            );
+        }
 
         return response()->json([
             'booking' => new MentorBookingResource(

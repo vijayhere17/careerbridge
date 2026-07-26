@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Check, Plus, Trash2, Clock, Save, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Clock, Save, X } from "lucide-react";
+import { apiFetch } from "@/lib/auth";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -17,15 +18,9 @@ interface DaySchedule {
 
 type Schedule = Record<string, DaySchedule>;
 
-const DEFAULT_SCHEDULE: Schedule = {
-  Monday:    { enabled: true,  slots: ["10:00 AM", "11:00 AM", "03:00 PM", "04:00 PM"] },
-  Tuesday:   { enabled: true,  slots: ["10:00 AM", "11:00 AM", "03:00 PM"] },
-  Wednesday: { enabled: false, slots: [] },
-  Thursday:  { enabled: true,  slots: ["02:00 PM", "03:00 PM", "04:00 PM"] },
-  Friday:    { enabled: true,  slots: ["10:00 AM", "05:00 PM", "06:00 PM"] },
-  Saturday:  { enabled: false, slots: [] },
-  Sunday:    { enabled: false, slots: [] },
-};
+const EMPTY_SCHEDULE: Schedule = Object.fromEntries(
+  DAYS.map((day) => [day, { enabled: false, slots: [] as string[] }]),
+) as Schedule;
 
 function SlotPicker({
   day,
@@ -80,9 +75,27 @@ function SlotPicker({
 }
 
 export function MentorAvailability() {
-  const [schedule, setSchedule] = useState<Schedule>(DEFAULT_SCHEDULE);
+  const [schedule, setSchedule] = useState<Schedule>(EMPTY_SCHEDULE);
   const [editDay, setEditDay] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await apiFetch<{ schedule: Schedule }>("/api/mentor/availability");
+        setSchedule({ ...EMPTY_SCHEDULE, ...(data.schedule ?? {}) });
+      } catch (err) {
+        console.error(err);
+        setError("Could not load availability.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
+  }, []);
 
   const toggleDay = (day: string) => {
     setSchedule((prev) => ({
@@ -110,13 +123,35 @@ export function MentorAvailability() {
     });
   };
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const data = await apiFetch<{ schedule: Schedule }>("/api/mentor/availability", {
+        method: "PUT",
+        body: JSON.stringify({ schedule }),
+      });
+      setSchedule({ ...EMPTY_SCHEDULE, ...(data.schedule ?? {}) });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+      setError("Could not save availability.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const totalSlots = Object.values(schedule).reduce((s, d) => s + d.slots.length, 0);
   const activeDays = Object.values(schedule).filter((d) => d.enabled).length;
+
+  if (loading) {
+    return (
+      <div className="py-16 text-center text-sm text-muted-foreground">
+        Loading availability...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -131,9 +166,15 @@ export function MentorAvailability() {
         </div>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="space-y-2">
         {DAYS.map((day) => {
-          const d = schedule[day];
+          const d = schedule[day] ?? { enabled: false, slots: [] };
           return (
             <div key={day} className={`rounded-xl border bg-surface p-4 transition-all ${d.enabled ? "border-border" : "border-border opacity-50"}`}>
               <div className="flex items-center justify-between gap-3">
@@ -189,10 +230,11 @@ export function MentorAvailability() {
       </div>
 
       <button
-        onClick={handleSave}
-        className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+        onClick={() => void handleSave()}
+        disabled={saving}
+        className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
       >
-        {saved ? <><Check className="h-4 w-4" /> Saved!</> : <><Save className="h-4 w-4" /> Save Availability</>}
+        {saved ? <><Check className="h-4 w-4" /> Saved!</> : <><Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Availability"}</>}
       </button>
 
       {editDay && (

@@ -28,10 +28,13 @@ use App\Http\Controllers\Api\MentorEarningsController;
 use App\Http\Controllers\Api\MentorWithdrawController;
 use App\Http\Controllers\Api\MentorReviewsController;
 use App\Http\Controllers\Api\MentorNotificationController;
+use App\Http\Controllers\Api\MentorAvailabilityController;
+use App\Http\Controllers\Api\MentorWalletController;
 use App\Http\Controllers\Api\MentorProfileSettingsController;
 use App\Http\Controllers\Api\Mentor\MentorSecurityController;
 use App\Http\Controllers\Api\Mentor\MentorDashboardController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
+use App\Http\Controllers\Api\Admin\AdminMentorController;
 use App\Http\Controllers\Api\Admin\AdminRecruiterController;
 use App\Http\Controllers\Api\Admin\AdminUnlockController;
 use App\Http\Controllers\Api\Admin\AdminWithdrawController;
@@ -67,17 +70,26 @@ Route::get(
 
 
 Route::get('/mentor/notifications', [MentorNotificationController::class, 'index']);
+Route::post('/mentor/notifications/read-all', [MentorNotificationController::class, 'markAllRead']);
+Route::post('/mentor/notifications/{id}/read', [MentorNotificationController::class, 'markRead']);
+Route::delete('/mentor/notifications/{id}', [MentorNotificationController::class, 'destroy']);
 
-Route::middleware('auth:sanctum')->get(
+Route::get(
     '/mentor/reviews',
     [MentorReviewsController::class, 'index']
 );
 
 Route::post('/mentor/withdraw', [MentorWithdrawController::class, 'store']);
-
 Route::get('/mentor/withdraw', [MentorWithdrawController::class, 'index']);
+Route::post('/mentor/withdraw/{id}/cancel', [MentorWithdrawController::class, 'cancel']);
 
 Route::get('/mentor/earnings', [MentorEarningsController::class, 'index']);
+Route::get('/mentor/wallet', [MentorWalletController::class, 'index']);
+Route::get('/mentor/wallet/transactions', [MentorWalletController::class, 'transactions']);
+
+Route::get('/mentor/availability', [MentorAvailabilityController::class, 'show']);
+Route::put('/mentor/availability', [MentorAvailabilityController::class, 'update']);
+Route::post('/mentor/availability', [MentorAvailabilityController::class, 'update']);
 
 Route::get('mentor/services', [
     MentorServiceController::class,
@@ -428,9 +440,10 @@ Route::prefix('mentor')->group(function () {
     Route::put('services/{service}',                    [MentorController::class, 'updateMentorService']);
     Route::delete('services/{service}',                 [MentorController::class, 'destroyMentorService']);
 
-    // Availability
-    Route::get('availability',                          [MentorController::class, 'getAvailability']);
-    Route::post('availability',                         [MentorController::class, 'updateAvailability']);
+    // Availability (canonical: mentor_availabilities table)
+    Route::get('availability',                          [MentorAvailabilityController::class, 'show']);
+    Route::post('availability',                         [MentorAvailabilityController::class, 'update']);
+    Route::put('availability',                          [MentorAvailabilityController::class, 'update']);
 
     // Reviews
     Route::get('reviews',                               [MentorController::class, 'mentorReviews']);
@@ -447,7 +460,9 @@ Route::prefix('admin')->group(function () {
     Route::get('recruiters/{userId}', [AdminRecruiterController::class, 'show']);
     Route::get('recruiters/{userId}/history', [AdminRecruiterController::class, 'history']);
     Route::post('recruiters/{userId}/review', [AdminRecruiterController::class, 'review']);
-    Route::get('mentors', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'mentors'));
+    Route::get('mentors', [AdminMentorController::class, 'index']);
+    Route::get('mentors/{userId}', [AdminMentorController::class, 'show']);
+    Route::post('mentors/{userId}/review', [AdminMentorController::class, 'review']);
     Route::get('job-seekers', fn (\Illuminate\Http\Request $request) => app(AdminRecruiterController::class)->users($request, 'job-seekers'));
     Route::get('withdrawals', [AdminWithdrawController::class, 'index']);
     Route::post('withdrawals/{id}/review', [AdminWithdrawController::class, 'review']);

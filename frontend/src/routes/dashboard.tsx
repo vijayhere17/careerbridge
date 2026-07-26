@@ -114,6 +114,11 @@ function DashboardPage() {
     savedMentors: 0,
     walletBalance: 0,
 });
+  const [mentorSidebarStats, setMentorSidebarStats] = useState({
+    sessions: 0,
+    rating: 0,
+    wallet: 0,
+  });
 const [upcomingSessions, setUpcomingSessions] = useState<MentorSession[]>([]);
 
   useEffect(() => {
@@ -163,6 +168,19 @@ if (a.user.role === "mentor") {
   ) {
     return;
   }
+
+  const mentorDash = await apiFetch<{
+    mentor: { total_sessions?: number; rating?: number };
+    stats: { wallet_balance?: number };
+  }>("/api/mentor/dashboard");
+
+  setMentorSidebarStats({
+    sessions: mentorDash.mentor?.total_sessions ?? 0,
+    rating: mentorDash.mentor?.rating ?? 0,
+    wallet: mentorDash.stats?.wallet_balance ?? 0,
+  });
+  setActive(menu.mentor[0].label);
+  return;
 }
 
 const [s, d] = await Promise.all([
@@ -364,9 +382,14 @@ const renderContent = () => {
               {user.role === "mentor" && (
   <div className="grid grid-cols-3 gap-2">
     {[
-      { label: "Sessions", value: "48" },
-      { label: "Rating", value: "4.9" },
-      { label: "Wallet", value: "₹8K" },
+      { label: "Sessions", value: String(mentorSidebarStats.sessions) },
+      { label: "Rating", value: mentorSidebarStats.rating ? mentorSidebarStats.rating.toFixed(1) : "—" },
+      {
+        label: "Wallet",
+        value: mentorSidebarStats.wallet >= 1000
+          ? `₹${Math.round(mentorSidebarStats.wallet / 1000)}K`
+          : `₹${Math.round(mentorSidebarStats.wallet)}`,
+      },
     ].map(({ label, value }) => (
       <div
         key={label}

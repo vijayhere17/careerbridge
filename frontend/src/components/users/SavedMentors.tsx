@@ -57,8 +57,8 @@ const SAVED_MENTORS: Mentor[] = [
   },
   {
     id: "m4", name: "Meera Pillai", initials: "MP",
-    role: "HR Director", company: "Infosys",
-    industry: "HR & Talent", location: "Chennai",
+    role: "People Ops Director", company: "Infosys",
+    industry: "People & Talent", location: "Chennai",
     rating: 4.8, reviewCount: 203, sessionCount: 520,
     verified: true, available: true,
     skills: ["Resume Building", "Interview Skills", "Salary Negotiation", "LinkedIn"],

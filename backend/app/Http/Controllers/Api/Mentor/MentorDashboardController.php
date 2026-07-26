@@ -35,9 +35,10 @@ class MentorDashboardController extends Controller
     private function sessionType(?string $type): string
     {
         return match ($type) {
-            'audio' => 'Audio Call',
-            'chat' => 'Chat',
-            default => 'Video Call',
+            'Audio Call', 'audio', 'Audio' => 'Audio Call',
+            'Chat', 'chat' => 'Chat',
+            'Video Call', 'video', 'Video' => 'Video Call',
+            default => $type ?: 'Video Call',
         };
     }
 
