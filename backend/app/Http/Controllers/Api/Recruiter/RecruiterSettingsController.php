@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Recruiter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RecruiterSettingsController extends RecruiterBaseController
@@ -19,6 +20,14 @@ class RecruiterSettingsController extends RecruiterBaseController
         return $this->success([
             'profile' => $this->transformUser($user),
             'preferences' => $this->preferences($user),
+            'payout' => $this->payoutSettings($user),
+            'sessions' => [[
+                'id' => 'current',
+                'device' => 'Current session',
+                'ip' => $request->ip(),
+                'last_active_at' => now()->toIso8601String(),
+                'is_current' => true,
+            ]],
         ], 'Settings retrieved successfully.');
     }
 
@@ -50,6 +59,35 @@ class RecruiterSettingsController extends RecruiterBaseController
         return $this->success($this->transformUser($user), 'Profile updated successfully.');
     }
 
+    public function changeEmail(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'current_password' => 'required|string',
+        ]);
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        if (! Hash::check($request->input('current_password'), $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect.',
+            ], 422);
+        }
+
+        $user->email = $request->input('email');
+        $user->verified_email = false;
+        $user->save();
+
+        return $this->success($this->transformUser($user), 'Email updated successfully.');
+    }
+
     public function changePassword(Request $request)
     {
         [$user, $error] = $this->recruiterUser($request);
@@ -66,7 +104,7 @@ class RecruiterSettingsController extends RecruiterBaseController
             return $this->validationError($validator->errors());
         }
 
-        if (!Hash::check($request->input('current_password'), $user->password)) {
+        if (! Hash::check($request->input('current_password'), $user->password)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Current password is incorrect.',
@@ -93,6 +131,7 @@ class RecruiterSettingsController extends RecruiterBaseController
             'application_alerts' => 'nullable|boolean',
             'unlock_alerts' => 'nullable|boolean',
             'withdraw_alerts' => 'nullable|boolean',
+            'message_alerts' => 'nullable|boolean',
             'weekly_digest' => 'nullable|boolean',
             'profile_visibility' => 'nullable|boolean',
             'show_contact_publicly' => 'nullable|boolean',
@@ -121,6 +160,75 @@ class RecruiterSettingsController extends RecruiterBaseController
         return $this->success($preferences, 'Preferences saved successfully.');
     }
 
+    public function updatePayout(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'bank_name' => 'nullable|string|max:255',
+            'account_holder' => 'nullable|string|max:255',
+            'account_number' => 'nullable|string|max:255',
+            'ifsc' => 'nullable|string|max:20',
+            'upi' => 'nullable|string|max:255',
+        ]);
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        $data = $validator->validated();
+        if (empty($data['ifsc']) && empty($data['upi']) && empty($data['account_number'])) {
+            return $this->validationError([
+                'upi' => ['Provide bank account details or UPI.'],
+            ]);
+        }
+
+        $stored = is_array($user->hr_preferences) ? $user->hr_preferences : [];
+        $stored['recruiter_payout'] = array_merge($this->payoutSettings($user), $data);
+        $user->forceFill(['hr_preferences' => $stored])->save();
+
+        return $this->success($this->payoutSettings($user->fresh()), 'Payout settings saved successfully.');
+    }
+
+    public function deleteAccount(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request, false);
+        if ($error) {
+            return $error;
+        }
+
+        $validator = Validator::make($request->all(), [
+            'current_password' => 'required|string',
+            'confirmation' => 'required|in:DELETE',
+        ]);
+        if ($validator->fails()) {
+            return $this->validationError($validator->errors());
+        }
+
+        if (! Hash::check($request->input('current_password'), $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current password is incorrect.',
+            ], 422);
+        }
+
+        $stored = is_array($user->hr_preferences) ? $user->hr_preferences : [];
+        $stored['recruiter_account'] = [
+            'deleted_at' => now()->toIso8601String(),
+            'previous_email' => $user->email,
+        ];
+
+        $user->forceFill([
+            'api_token' => null,
+            'email' => 'deleted+' . $user->id . '+' . Str::lower(Str::random(6)) . '@careerbridge.local',
+            'hr_preferences' => $stored,
+        ])->save();
+
+        return $this->success(null, 'Account deleted successfully.');
+    }
+
     private function transformUser($user): array
     {
         return [
@@ -143,11 +251,25 @@ class RecruiterSettingsController extends RecruiterBaseController
         $stored = is_array($user->hr_preferences) ? $user->hr_preferences : [];
         $recruiterPreferences = $stored['recruiter_preferences'] ?? [];
 
-        if (!is_array($recruiterPreferences)) {
+        if (! is_array($recruiterPreferences)) {
             $recruiterPreferences = [];
         }
 
         return array_merge($this->defaultPreferences(), $recruiterPreferences);
+    }
+
+    private function payoutSettings($user): array
+    {
+        $stored = is_array($user->hr_preferences) ? $user->hr_preferences : [];
+        $payout = $stored['recruiter_payout'] ?? [];
+
+        return [
+            'bank_name' => $payout['bank_name'] ?? '',
+            'account_holder' => $payout['account_holder'] ?? '',
+            'account_number' => $payout['account_number'] ?? '',
+            'ifsc' => $payout['ifsc'] ?? '',
+            'upi' => $payout['upi'] ?? '',
+        ];
     }
 
     private function defaultPreferences(): array
@@ -158,6 +280,7 @@ class RecruiterSettingsController extends RecruiterBaseController
             'application_alerts' => true,
             'unlock_alerts' => true,
             'withdraw_alerts' => true,
+            'message_alerts' => true,
             'weekly_digest' => false,
             'profile_visibility' => true,
             'show_contact_publicly' => false,

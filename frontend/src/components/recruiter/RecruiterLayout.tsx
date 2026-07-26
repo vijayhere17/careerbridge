@@ -15,6 +15,8 @@ import {
   X,
   Compass,
   LogOut,
+  MessageSquare,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
@@ -30,13 +32,15 @@ const navItems = [
   { to: "/recruiter", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/recruiter/profile", label: "Profile", icon: User },
   { to: "/recruiter/post-new", label: "Post New Opportunity", icon: PlusSquare },
-  { to: "/recruiter/manage-posts", label: "Manage Posts", icon: ListChecks },
+  { to: "/recruiter/manage-posts", label: "My Opportunities", icon: ListChecks },
   { to: "/recruiter/applications", label: "Applications", icon: Users },
-  { to: "/recruiter/unlock-earnings", label: "Unlock Earnings", icon: Coins },
+  { to: "/recruiter/messages", label: "Messages", icon: MessageSquare },
+  { to: "/recruiter/unlock-earnings", label: "Candidate Contact Unlocks", icon: Coins },
   { to: "/recruiter/wallet", label: "Wallet", icon: Wallet },
-  { to: "/recruiter/withdraw", label: "Withdraw Request", icon: ArrowDownToLine },
+  { to: "/recruiter/withdraw", label: "Withdrawals", icon: ArrowDownToLine },
+  { to: "/recruiter/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/recruiter/notifications", label: "Notifications", icon: Bell },
-  { to: "/recruiter/settings", label: "Profile Settings", icon: Settings },
+  { to: "/recruiter/settings", label: "Account Settings", icon: Settings },
 ] as const;
 
 function SidebarInner({
@@ -45,12 +49,14 @@ function SidebarInner({
   companyName,
   avatarUrl,
   unreadCount,
+  messageUnreadCount,
 }: {
   onNavigate?: () => void;
   userName?: string;
   companyName?: string;
   avatarUrl?: string | null;
   unreadCount?: number;
+  messageUnreadCount?: number;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -88,6 +94,12 @@ function SidebarInner({
             ? pathname === n.to || pathname === `${n.to}/`
             : pathname === n.to || pathname.startsWith(`${n.to}/`);
           const Icon = n.icon;
+          const badge =
+            n.to === "/recruiter/notifications"
+              ? unreadCount
+              : n.to === "/recruiter/messages"
+                ? messageUnreadCount
+                : 0;
           return (
             <Link
               key={n.to}
@@ -102,9 +114,9 @@ function SidebarInner({
             >
               <Icon className="h-4 w-4 shrink-0" strokeWidth={2.25} />
               <span className="truncate flex-1">{n.label}</span>
-              {n.to === "/recruiter/notifications" && !!unreadCount && unreadCount > 0 && (
+              {!!badge && badge > 0 && (
                 <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                  {unreadCount > 99 ? "99+" : unreadCount}
+                  {badge > 99 ? "99+" : badge}
                 </span>
               )}
             </Link>
@@ -150,6 +162,7 @@ export function RecruiterLayout({
   const [companyName, setCompanyName] = useState<string | undefined>(getStoredUser()?.company ?? undefined);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [messageUnreadCount, setMessageUnreadCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -210,6 +223,11 @@ export function RecruiterLayout({
       .unreadNotifications()
       .then((res) => setUnreadCount(res.data.unread_count ?? 0))
       .catch(() => setUnreadCount(0));
+
+    recruiterService
+      .conversations({ per_page: 1 })
+      .then((res) => setMessageUnreadCount(Number(res.data?.unread_count ?? 0)))
+      .catch(() => setMessageUnreadCount(0));
   }, [router]);
 
   return (
@@ -220,6 +238,7 @@ export function RecruiterLayout({
           companyName={companyName}
           avatarUrl={avatarUrl}
           unreadCount={unreadCount}
+          messageUnreadCount={messageUnreadCount}
         />
       </aside>
 
@@ -235,6 +254,7 @@ export function RecruiterLayout({
               companyName={companyName}
               avatarUrl={avatarUrl}
               unreadCount={unreadCount}
+              messageUnreadCount={messageUnreadCount}
               onNavigate={() => setOpen(false)}
             />
           </aside>

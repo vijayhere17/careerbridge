@@ -507,6 +507,7 @@ Route::prefix('recruiter')->group(function () {
     Route::post('applications/{id}/messages', [RecruiterMessageController::class, 'store']);
     Route::put('applications/{id}', [RecruiterApplicationController::class, 'update']);
 
+    Route::get('messages', [RecruiterMessageController::class, 'conversations']);
     Route::get('messages/unread-count', [RecruiterMessageController::class, 'unreadCount']);
 
     Route::get('notifications', [RecruiterNotificationController::class, 'index']);
@@ -525,9 +526,15 @@ Route::prefix('recruiter')->group(function () {
 
     Route::get('withdraw', [RecruiterWithdrawController::class, 'index']);
     Route::post('withdraw', [RecruiterWithdrawController::class, 'store']);
+    Route::post('withdraw/{id}/cancel', [RecruiterWithdrawController::class, 'cancel']);
+
+    Route::get('analytics', [RecruiterDashboardController::class, 'analytics']);
 
     Route::get('settings', [RecruiterSettingsController::class, 'show']);
     Route::put('settings/profile', [RecruiterSettingsController::class, 'updateProfile']);
     Route::post('settings/password', [RecruiterSettingsController::class, 'changePassword']);
+    Route::post('settings/email', [RecruiterSettingsController::class, 'changeEmail']);
     Route::put('settings/preferences', [RecruiterSettingsController::class, 'updatePreferences']);
+    Route::put('settings/payout', [RecruiterSettingsController::class, 'updatePayout']);
+    Route::post('settings/delete-account', [RecruiterSettingsController::class, 'deleteAccount']);
 });

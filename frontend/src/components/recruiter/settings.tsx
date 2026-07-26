@@ -29,9 +29,18 @@ type Preferences = {
   application_alerts: boolean;
   unlock_alerts: boolean;
   withdraw_alerts: boolean;
+  message_alerts: boolean;
   weekly_digest: boolean;
   profile_visibility: boolean;
   show_contact_publicly: boolean;
+};
+
+type PayoutSettings = {
+  bank_name: string;
+  account_holder: string;
+  account_number: string;
+  ifsc: string;
+  upi: string;
 };
 
 const defaultPreferences: Preferences = {
@@ -40,9 +49,18 @@ const defaultPreferences: Preferences = {
   application_alerts: true,
   unlock_alerts: true,
   withdraw_alerts: true,
+  message_alerts: true,
   weekly_digest: false,
   profile_visibility: true,
   show_contact_publicly: false,
+};
+
+const emptyPayout: PayoutSettings = {
+  bank_name: "",
+  account_holder: "",
+  account_number: "",
+  ifsc: "",
+  upi: "",
 };
 
 const preferenceRows: Array<[keyof Preferences, string, string]> = [
@@ -51,6 +69,7 @@ const preferenceRows: Array<[keyof Preferences, string, string]> = [
   ["application_alerts", "Application alerts", "Notify me when candidates apply to my posts."],
   ["unlock_alerts", "Unlock alerts", "Notify me when a candidate contact is unlocked."],
   ["withdraw_alerts", "Withdrawal alerts", "Notify me about withdrawal request status changes."],
+  ["message_alerts", "Message alerts", "Notify me when candidates send messages."],
   ["weekly_digest", "Weekly digest", "Send a weekly summary of recruiter activity."],
   ["profile_visibility", "Public company profile", "Allow your company profile to appear publicly."],
   ["show_contact_publicly", "Show contact publicly", "Display email/phone on public opportunity pages."],
@@ -65,6 +84,7 @@ function booleanPreferences(input: Record<string, unknown> | null | undefined): 
     application_alerts: Boolean(input?.application_alerts ?? defaultPreferences.application_alerts),
     unlock_alerts: Boolean(input?.unlock_alerts ?? defaultPreferences.unlock_alerts),
     withdraw_alerts: Boolean(input?.withdraw_alerts ?? defaultPreferences.withdraw_alerts),
+    message_alerts: Boolean(input?.message_alerts ?? defaultPreferences.message_alerts),
     weekly_digest: Boolean(input?.weekly_digest ?? defaultPreferences.weekly_digest),
     profile_visibility: Boolean(input?.profile_visibility ?? defaultPreferences.profile_visibility),
     show_contact_publicly: Boolean(
@@ -90,9 +110,14 @@ export function SettingsPage() {
     password: "",
     password_confirmation: "",
   });
+  const [emailForm, setEmailForm] = useState({ email: "", current_password: "" });
+  const [payout, setPayout] = useState<PayoutSettings>(emptyPayout);
+  const [deleteForm, setDeleteForm] = useState({ current_password: "", confirmation: "" });
   const [preferences, setPreferences] = useState<Preferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<"profile" | "password" | "preferences" | null>(null);
+  const [saving, setSaving] = useState<
+    "profile" | "password" | "preferences" | "email" | "payout" | "delete" | null
+  >(null);
   const [error, setError] = useState("");
 
   const load = async () => {
@@ -100,7 +125,7 @@ export function SettingsPage() {
     setError("");
     try {
       const res = await recruiterService.getSettings();
-      const data = res.data ?? {};
+      const data = (res.data ?? {}) as Record<string, any>;
       setProfile({
         id: data.profile?.id,
         name: fieldValue(data.profile?.name),
@@ -109,7 +134,15 @@ export function SettingsPage() {
         company: fieldValue(data.profile?.company),
         current_role: fieldValue(data.profile?.current_role),
       });
+      setEmailForm((current) => ({ ...current, email: fieldValue(data.profile?.email) }));
       setPreferences(booleanPreferences(data.preferences));
+      setPayout({
+        bank_name: fieldValue(data.payout?.bank_name),
+        account_holder: fieldValue(data.payout?.account_holder),
+        account_number: fieldValue(data.payout?.account_number),
+        ifsc: fieldValue(data.payout?.ifsc),
+        upi: fieldValue(data.payout?.upi),
+      });
     } catch (err) {
       const message = apiErrorMessage(err, "Failed to load settings");
       setError(message);
@@ -208,10 +241,70 @@ export function SettingsPage() {
     }
   };
 
+  const changeEmail = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving("email");
+    try {
+      const res = await recruiterService.changeEmail({
+        email: emailForm.email.trim(),
+        current_password: emailForm.current_password,
+      });
+      setProfile((current) => ({ ...current, email: fieldValue(res.data?.email) }));
+      setEmailForm({ email: fieldValue(res.data?.email), current_password: "" });
+      toast.success("Email updated");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not change email"));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const savePayout = async (event: FormEvent) => {
+    event.preventDefault();
+    setSaving("payout");
+    try {
+      const res = await recruiterService.updatePayout(payout);
+      const data = (res.data ?? {}) as PayoutSettings;
+      setPayout({
+        bank_name: fieldValue(data.bank_name),
+        account_holder: fieldValue(data.account_holder),
+        account_number: fieldValue(data.account_number),
+        ifsc: fieldValue(data.ifsc),
+        upi: fieldValue(data.upi),
+      });
+      toast.success("Payout settings saved");
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not save payout settings"));
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const deleteAccount = async (event: FormEvent) => {
+    event.preventDefault();
+    if (deleteForm.confirmation !== "DELETE") {
+      toast.error('Type DELETE to confirm account deletion');
+      return;
+    }
+    setSaving("delete");
+    try {
+      await recruiterService.deleteAccount({
+        current_password: deleteForm.current_password,
+        confirmation: "DELETE",
+      });
+      toast.success("Account deleted");
+      window.location.href = "/login";
+    } catch (err) {
+      toast.error(apiErrorMessage(err, "Could not delete account"));
+    } finally {
+      setSaving(null);
+    }
+  };
+
   return (
     <RecruiterLayout
-      title="Profile Settings"
-      subtitle="Update account, security and notification preferences"
+      title="Account Settings"
+      subtitle="Update account, security, payout and notification preferences"
     >
       {loading ? (
         <RecruiterLoadingSkeleton rows={5} />
@@ -222,8 +315,11 @@ export function SettingsPage() {
           <Tabs defaultValue="profile" className="mt-4 w-full">
             <TabsList className="flex h-auto w-full flex-wrap justify-start sm:w-auto">
               <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="email">Change Email</TabsTrigger>
               <TabsTrigger value="password">Password</TabsTrigger>
-              <TabsTrigger value="preferences">Notifications/Preferences</TabsTrigger>
+              <TabsTrigger value="payout">Payout</TabsTrigger>
+              <TabsTrigger value="preferences">Notifications</TabsTrigger>
+              <TabsTrigger value="danger">Delete Account</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="mt-6">
@@ -292,6 +388,38 @@ export function SettingsPage() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="email" className="mt-6">
+              <Card title="Change Email" icon={<Mail className="h-4 w-4 text-primary" />}>
+                <form onSubmit={changeEmail} className="max-w-xl space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="new_email">New email</Label>
+                    <Input
+                      id="new_email"
+                      type="email"
+                      value={emailForm.email}
+                      onChange={(e) => setEmailForm((c) => ({ ...c, email: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email_password">Current password</Label>
+                    <Input
+                      id="email_password"
+                      type="password"
+                      value={emailForm.current_password}
+                      onChange={(e) =>
+                        setEmailForm((c) => ({ ...c, current_password: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <Button variant="brand" type="submit" disabled={saving === "email"}>
+                    {saving === "email" ? "Updating..." : "Update email"}
+                  </Button>
+                </form>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="password" className="mt-6">
               <Card title="Password" icon={<Shield className="h-4 w-4 text-primary" />}>
                 <form onSubmit={changePassword} className="max-w-xl space-y-4">
@@ -344,6 +472,59 @@ export function SettingsPage() {
               </Card>
             </TabsContent>
 
+            <TabsContent value="payout" className="mt-6">
+              <Card title="Payout Settings" icon={<Building2 className="h-4 w-4 text-primary" />}>
+                <form onSubmit={savePayout} className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_name">Bank name</Label>
+                    <Input
+                      id="bank_name"
+                      value={payout.bank_name}
+                      onChange={(e) => setPayout((c) => ({ ...c, bank_name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account_holder">Account holder</Label>
+                    <Input
+                      id="account_holder"
+                      value={payout.account_holder}
+                      onChange={(e) => setPayout((c) => ({ ...c, account_holder: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="account_number">Account number</Label>
+                    <Input
+                      id="account_number"
+                      value={payout.account_number}
+                      onChange={(e) => setPayout((c) => ({ ...c, account_number: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ifsc">IFSC</Label>
+                    <Input
+                      id="ifsc"
+                      value={payout.ifsc}
+                      onChange={(e) => setPayout((c) => ({ ...c, ifsc: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="upi">UPI</Label>
+                    <Input
+                      id="upi"
+                      value={payout.upi}
+                      onChange={(e) => setPayout((c) => ({ ...c, upi: e.target.value }))}
+                      placeholder="name@upi"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button variant="brand" type="submit" disabled={saving === "payout"}>
+                      {saving === "payout" ? "Saving..." : "Save payout settings"}
+                    </Button>
+                  </div>
+                </form>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="preferences" className="mt-6">
               <Card
                 title="Notifications/Preferences"
@@ -370,6 +551,43 @@ export function SettingsPage() {
                   ))}
                   <Button variant="brand" type="submit" disabled={saving === "preferences"}>
                     {saving === "preferences" ? "Saving..." : "Save preferences"}
+                  </Button>
+                </form>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="danger" className="mt-6">
+              <Card title="Delete Account" icon={<Shield className="h-4 w-4 text-destructive" />}>
+                <form onSubmit={deleteAccount} className="max-w-xl space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    This permanently disables your recruiter account. Type DELETE to confirm.
+                  </p>
+                  <div className="space-y-2">
+                    <Label htmlFor="delete_password">Current password</Label>
+                    <Input
+                      id="delete_password"
+                      type="password"
+                      value={deleteForm.current_password}
+                      onChange={(e) =>
+                        setDeleteForm((c) => ({ ...c, current_password: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delete_confirm">Confirmation</Label>
+                    <Input
+                      id="delete_confirm"
+                      value={deleteForm.confirmation}
+                      onChange={(e) =>
+                        setDeleteForm((c) => ({ ...c, confirmation: e.target.value }))
+                      }
+                      placeholder="DELETE"
+                      required
+                    />
+                  </div>
+                  <Button variant="destructive" type="submit" disabled={saving === "delete"}>
+                    {saving === "delete" ? "Deleting..." : "Delete account"}
                   </Button>
                 </form>
               </Card>

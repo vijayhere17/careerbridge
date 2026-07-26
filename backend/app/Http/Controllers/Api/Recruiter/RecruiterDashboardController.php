@@ -189,10 +189,131 @@ class RecruiterDashboardController extends RecruiterBaseController
         ], 'Dashboard retrieved successfully.');
     }
 
+    public function analytics(Request $request)
+    {
+        [$user, $error] = $this->recruiterUser($request);
+        if ($error) {
+            return $error;
+        }
+
+        $days = (int) $request->query('days', 30);
+        if (! in_array($days, [7, 30, 90], true)) {
+            $days = 30;
+        }
+
+        $opportunityIds = RecruiterOpportunity::where('user_id', $user->id)->pluck('id');
+        $applications = RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds);
+        $unlocks = RecruiterContactUnlock::where('recruiter_id', $user->id)->where('status', 'earned');
+        $totalApplications = (clone $applications)->count();
+        $hired = (clone $applications)->whereIn('status', ['hired', 'completed'])->count();
+        $interviewed = (clone $applications)->whereIn('status', ['interview', 'interview_completed', 'accepted', 'hired', 'completed'])->count();
+
+        $daily = collect(range($days - 1, 0))->map(function (int $offset) use ($opportunityIds, $user) {
+            $date = Carbon::today()->subDays($offset);
+            $dayApps = RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds)
+                ->whereDate('created_at', $date)
+                ->count();
+            $dayViews = (int) RecruiterOpportunity::where('user_id', $user->id)
+                ->whereDate('updated_at', $date)
+                ->sum('views');
+            $dayEarnings = (float) RecruiterContactUnlock::where('recruiter_id', $user->id)
+                ->where('status', 'earned')
+                ->whereDate('unlocked_at', $date)
+                ->sum('amount');
+
+            return [
+                'date' => $date->toDateString(),
+                'label' => $date->format($days > 30 ? 'M d' : 'D'),
+                'applications' => $dayApps,
+                'views' => $dayViews,
+                'earnings' => $dayEarnings,
+            ];
+        })->values()->all();
+
+        $monthlyApplications = collect(range(5, 0))->map(function (int $offset) use ($opportunityIds) {
+            $month = Carbon::now()->startOfMonth()->subMonths($offset);
+
+            return [
+                'month' => $month->format('Y-m'),
+                'label' => $month->format('M Y'),
+                'applications' => RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds)
+                    ->whereYear('created_at', $month->year)
+                    ->whereMonth('created_at', $month->month)
+                    ->count(),
+            ];
+        })->values()->all();
+
+        $topSkills = RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds)
+            ->with('candidate:id,skills')
+            ->latest()
+            ->limit(200)
+            ->get()
+            ->flatMap(function (RecruiterApplication $application) {
+                $skills = $application->candidate?->skills;
+                if (is_array($skills)) {
+                    return $skills;
+                }
+                if (is_string($skills) && $skills !== '') {
+                    return array_map('trim', explode(',', $skills));
+                }
+
+                return [];
+            })
+            ->filter()
+            ->countBy(fn ($skill) => strtolower((string) $skill))
+            ->sortDesc()
+            ->take(8)
+            ->map(fn ($count, $skill) => ['skill' => $skill, 'count' => $count])
+            ->values()
+            ->all();
+
+        $topOpportunities = RecruiterOpportunity::where('user_id', $user->id)
+            ->withCount(['applications', 'unlocks'])
+            ->orderByDesc('applications_count')
+            ->orderByDesc('views')
+            ->limit(8)
+            ->get()
+            ->map(fn (RecruiterOpportunity $opportunity) => $this->opportunityPayload($opportunity));
+
+        return $this->success([
+            'range_days' => $days,
+            'stats' => [
+                'total_views' => (int) RecruiterOpportunity::where('user_id', $user->id)->sum('views'),
+                'total_applications' => $totalApplications,
+                'profile_views' => (int) RecruiterOpportunity::where('user_id', $user->id)->sum('views'),
+                'opportunity_views' => (int) RecruiterOpportunity::where('user_id', $user->id)->sum('views'),
+                'contact_unlock_count' => (clone $unlocks)->count(),
+                'earnings' => (float) (clone $unlocks)->sum('amount'),
+                'hiring_rate' => $totalApplications > 0 ? round(($hired / $totalApplications) * 100, 1) : 0,
+                'conversion_rate' => $totalApplications > 0 ? round(($interviewed / $totalApplications) * 100, 1) : 0,
+            ],
+            'daily_chart' => $daily,
+            'monthly_applications' => $monthlyApplications,
+            'earnings_trend' => $daily,
+            'opportunity_performance' => $topOpportunities,
+            'top_skills' => $topSkills,
+            'hiring_funnel' => [
+                'applied' => (clone $applications)->where('status', 'new')->count(),
+                'under_review' => (clone $applications)->where('status', 'under_review')->count(),
+                'shortlisted' => (clone $applications)->where('status', 'shortlisted')->count(),
+                'interview' => (clone $applications)->whereIn('status', ['interview', 'interview_completed'])->count(),
+                'hired' => $hired,
+                'rejected' => (clone $applications)->where('status', 'rejected')->count(),
+            ],
+            'candidate_sources' => [
+                ['source' => 'Direct Apply', 'count' => $totalApplications],
+                ['source' => 'Referral', 'count' => 0],
+            ],
+        ], 'Analytics retrieved successfully.');
+    }
+
     private function applicationTrends($opportunityIds): array
     {
         $days = collect(range(6, 0))->map(function (int $offset) use ($opportunityIds) {
             $date = Carbon::today()->subDays($offset);
+            $views = (int) RecruiterOpportunity::whereIn('id', $opportunityIds)
+                ->whereDate('updated_at', $date)
+                ->sum('views');
 
             return [
                 'date' => $date->toDateString(),
@@ -200,7 +321,7 @@ class RecruiterDashboardController extends RecruiterBaseController
                 'applications' => RecruiterApplication::whereIn('recruiter_opportunity_id', $opportunityIds)
                     ->whereDate('created_at', $date)
                     ->count(),
-                'views' => 0,
+                'views' => $views,
             ];
         });
 
@@ -252,8 +373,6 @@ class RecruiterDashboardController extends RecruiterBaseController
             'candidate' => $application->candidate ? [
                 'id' => $application->candidate->id,
                 'name' => $application->candidate->name,
-                'email' => $application->candidate->email,
-                'mobile' => $application->candidate->mobile,
                 'location' => $application->candidate->location,
                 'experience' => $application->candidate->experience,
                 'skills' => $application->candidate->skills,

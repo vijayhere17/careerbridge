@@ -44,7 +44,7 @@ class NotificationService
     {
         $allowed = [
             'booking', 'payment', 'review', 'system', 'application',
-            'interview', 'offer', 'job', 'recruiter', 'unlock', 'withdraw',
+            'interview', 'offer', 'job', 'recruiter', 'unlock', 'withdraw', 'message',
         ];
 
         return in_array($type, $allowed, true) ? $type : 'system';
