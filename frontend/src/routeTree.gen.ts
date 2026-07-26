@@ -44,6 +44,7 @@ import { Route as RecruiterSettingsRouteImport } from './routes/recruiter/settin
 import { Route as RecruiterUnlockEarningsRouteImport } from './routes/recruiter/unlock-earnings'
 import { Route as RecruiterWalletRouteImport } from './routes/recruiter/wallet'
 import { Route as RecruiterWithdrawRouteImport } from './routes/recruiter/withdraw'
+import { Route as AdminRecruitersIndexRouteImport } from './routes/admin/recruiters.index'
 import { Route as AdminRecruitersUserIdRouteImport } from './routes/admin/recruiters.$userId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -221,6 +222,11 @@ const RecruiterWithdrawRoute = RecruiterWithdrawRouteImport.update({
   path: '/recruiter/withdraw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRecruitersIndexRoute = AdminRecruitersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRecruitersRoute,
+} as any)
 const AdminRecruitersUserIdRoute = AdminRecruitersUserIdRouteImport.update({
   id: '/$userId',
   path: '/$userId',
@@ -264,6 +270,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/recruiter/': typeof RecruiterIndexRoute
   '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
+  '/admin/recruiters/': typeof AdminRecruitersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -284,7 +291,6 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/job-seekers': typeof AdminJobSeekersRoute
   '/admin/mentors': typeof AdminMentorsRoute
-  '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
@@ -302,6 +308,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/recruiter': typeof RecruiterIndexRoute
   '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
+  '/admin/recruiters': typeof AdminRecruitersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -341,6 +348,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/recruiter/': typeof RecruiterIndexRoute
   '/admin/recruiters/$userId': typeof AdminRecruitersUserIdRoute
+  '/admin/recruiters/': typeof AdminRecruitersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -381,6 +389,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/recruiter/'
     | '/admin/recruiters/$userId'
+    | '/admin/recruiters/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -401,7 +410,6 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/job-seekers'
     | '/admin/mentors'
-    | '/admin/recruiters'
     | '/admin/settings'
     | '/companies/$slug'
     | '/domains/$slug'
@@ -419,6 +427,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/recruiter'
     | '/admin/recruiters/$userId'
+    | '/admin/recruiters'
   id:
     | '__root__'
     | '/'
@@ -457,6 +466,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/recruiter/'
     | '/admin/recruiters/$userId'
+    | '/admin/recruiters/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -741,6 +751,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecruiterWithdrawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/recruiters/': {
+      id: '/admin/recruiters/'
+      path: '/'
+      fullPath: '/admin/recruiters/'
+      preLoaderRoute: typeof AdminRecruitersIndexRouteImport
+      parentRoute: typeof AdminRecruitersRoute
+    }
     '/admin/recruiters/$userId': {
       id: '/admin/recruiters/$userId'
       path: '/$userId'
@@ -787,10 +804,12 @@ const MentorsRouteWithChildren =
 
 interface AdminRecruitersRouteChildren {
   AdminRecruitersUserIdRoute: typeof AdminRecruitersUserIdRoute
+  AdminRecruitersIndexRoute: typeof AdminRecruitersIndexRoute
 }
 
 const AdminRecruitersRouteChildren: AdminRecruitersRouteChildren = {
   AdminRecruitersUserIdRoute: AdminRecruitersUserIdRoute,
+  AdminRecruitersIndexRoute: AdminRecruitersIndexRoute,
 }
 
 const AdminRecruitersRouteWithChildren = AdminRecruitersRoute._addFileChildren(

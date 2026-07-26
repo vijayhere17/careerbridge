@@ -156,6 +156,33 @@ export function AdminRecruiterDetailPage({ userId }: { userId: number }) {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Registered {formatDate(detail.user.created_at)} · Submitted {formatDate(profile.submitted_at)} · Completion {profile.profile_completion ?? 0}%
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(status === "Pending" || status === "ChangesRequested" || status === "Rejected") && (
+                    <Button disabled={saving} onClick={() => setPendingAction("approve")}>
+                      <CheckCircle2 className="mr-2 h-4 w-4" />Approve
+                    </Button>
+                  )}
+                  {(status === "Pending" || status === "ChangesRequested") && (
+                    <>
+                      <Button variant="destructive" disabled={saving} onClick={() => setPendingAction("reject")}>
+                        <XCircle className="mr-2 h-4 w-4" />Reject
+                      </Button>
+                      <Button variant="outline" disabled={saving} onClick={() => setPendingAction("request_changes")}>
+                        <RefreshCw className="mr-2 h-4 w-4" />Request Changes
+                      </Button>
+                    </>
+                  )}
+                  {status === "Approved" && (
+                    <Button variant="outline" disabled={saving} onClick={() => setPendingAction("suspend")}>
+                      <Ban className="mr-2 h-4 w-4" />Suspend
+                    </Button>
+                  )}
+                  {(status === "Suspended" || status === "Rejected") && (
+                    <Button variant="outline" disabled={saving} onClick={() => setPendingAction("reactivate")}>
+                      <RotateCcw className="mr-2 h-4 w-4" />Reactivate
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </section>
