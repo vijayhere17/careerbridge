@@ -30,6 +30,7 @@ import { Route as AdminJobSeekersRouteImport } from './routes/admin/job-seekers'
 import { Route as AdminMentorsRouteImport } from './routes/admin/mentors'
 import { Route as AdminRecruitersRouteImport } from './routes/admin/recruiters'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminWithdrawalsRouteImport } from './routes/admin/withdrawals'
 import { Route as CompaniesSlugRouteImport } from './routes/companies.$slug'
 import { Route as DomainsSlugRouteImport } from './routes/domains.$slug'
 import { Route as MentorsIdRouteImport } from './routes/mentors.$id'
@@ -152,6 +153,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWithdrawalsRoute = AdminWithdrawalsRouteImport.update({
+  id: '/admin/withdrawals',
+  path: '/admin/withdrawals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CompaniesSlugRoute = CompaniesSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/admin/mentors': typeof AdminMentorsRoute
   '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/withdrawals': typeof AdminWithdrawalsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
@@ -292,6 +299,7 @@ export interface FileRoutesByTo {
   '/admin/job-seekers': typeof AdminJobSeekersRoute
   '/admin/mentors': typeof AdminMentorsRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/withdrawals': typeof AdminWithdrawalsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/admin/mentors': typeof AdminMentorsRoute
   '/admin/recruiters': typeof AdminRecruitersRouteWithChildren
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/withdrawals': typeof AdminWithdrawalsRoute
   '/companies/$slug': typeof CompaniesSlugRoute
   '/domains/$slug': typeof DomainsSlugRoute
   '/mentors/$id': typeof MentorsIdRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/admin/mentors'
     | '/admin/recruiters'
     | '/admin/settings'
+  | '/admin/withdrawals'
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
@@ -411,6 +421,7 @@ export interface FileRouteTypes {
     | '/admin/job-seekers'
     | '/admin/mentors'
     | '/admin/settings'
+  | '/admin/withdrawals'
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/admin/mentors'
     | '/admin/recruiters'
     | '/admin/settings'
+  | '/admin/withdrawals'
     | '/companies/$slug'
     | '/domains/$slug'
     | '/mentors/$id'
@@ -490,6 +502,7 @@ export interface RootRouteChildren {
   AdminMentorsRoute: typeof AdminMentorsRoute
   AdminRecruitersRoute: typeof AdminRecruitersRouteWithChildren
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminWithdrawalsRoute: typeof AdminWithdrawalsRoute
   RecruiterApplicationsRoute: typeof RecruiterApplicationsRoute
   RecruiterManagePostsRoute: typeof RecruiterManagePostsRoute
   RecruiterNotificationsRoute: typeof RecruiterNotificationsRoute
@@ -651,6 +664,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/withdrawals': {
+      id: '/admin/withdrawals'
+      path: '/admin/withdrawals'
+      fullPath: '/admin/withdrawals'
+      preLoaderRoute: typeof AdminWithdrawalsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/companies/$slug': {
@@ -837,6 +857,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminMentorsRoute: AdminMentorsRoute,
   AdminRecruitersRoute: AdminRecruitersRouteWithChildren,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminWithdrawalsRoute: AdminWithdrawalsRoute,
   RecruiterApplicationsRoute: RecruiterApplicationsRoute,
   RecruiterManagePostsRoute: RecruiterManagePostsRoute,
   RecruiterNotificationsRoute: RecruiterNotificationsRoute,

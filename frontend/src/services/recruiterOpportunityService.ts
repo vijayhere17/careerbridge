@@ -43,15 +43,21 @@ export type RecruiterApplication = {
   recruiter_opportunity_id: number;
   candidate_id: number;
   status: string;
+  status_label?: string;
   rating?: number | null;
   resume_url?: string | null;
   message?: string | null;
   recruiter_notes?: string | null;
+  reject_reason?: string | null;
+  info_request?: string | null;
   expected_salary?: number | null;
   interview_status?: string | null;
   interview_at?: string | null;
   interview_link?: string | null;
   applied_at?: string | null;
+  contact_unlocked?: boolean;
+  contact_price?: number | null;
+  profile_strength?: number;
   candidate?: {
     id: number;
     name: string;
@@ -63,6 +69,13 @@ export type RecruiterApplication = {
     photo?: string | null;
     profile_photo?: string | null;
     resume_url?: string | null;
+    headline?: string | null;
+    education?: string | null;
+    bio?: string | null;
+    linkedin?: string | null;
+    github?: string | null;
+    portfolio?: string | null;
+    contact_unlocked?: boolean;
   } | null;
   opportunity?: {
     id: number;
@@ -183,6 +196,26 @@ export const recruiterService = {
   hireApplication: (id: number) =>
     recruiterFetch<RecruiterApplication>(`/applications/${id}/hire`, { method: "POST" }),
 
+  underReviewApplication: (id: number) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/under-review`, { method: "POST" }),
+
+  acceptApplication: (id: number) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/accept`, { method: "POST" }),
+
+  completeInterview: (id: number) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/complete-interview`, {
+      method: "POST",
+    }),
+
+  completeApplication: (id: number) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/complete`, { method: "POST" }),
+
+  requestApplicationInfo: (id: number, message: string) =>
+    recruiterFetch<RecruiterApplication>(`/applications/${id}/request-info`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+
   scheduleInterview: (
     id: number,
     payload: { interview_at: string; interview_link?: string; interview_status?: string },
@@ -192,7 +225,46 @@ export const recruiterService = {
       body: JSON.stringify(payload),
     }),
 
-  bulkApplications: (payload: { ids: number[]; action?: string; status?: string }) =>
+  applicationTimeline: (id: number) =>
+    recruiterFetch<{ timeline: RecruiterApiRecord[] }>(`/applications/${id}/timeline`),
+
+  applicationMessages: (id: number) =>
+    recruiterFetch<{ application_id: number; messages: RecruiterApiRecord[]; unread_count: number }>(
+      `/applications/${id}/messages`,
+    ),
+
+  sendApplicationMessage: (id: number, body?: string, attachment?: File | null) => {
+    if (attachment) {
+      const form = new FormData();
+      if (body?.trim()) form.append("body", body.trim());
+      form.append("attachment", attachment);
+      return recruiterFetch<RecruiterApiRecord>(`/applications/${id}/messages`, {
+        method: "POST",
+        body: form,
+      });
+    }
+
+    return recruiterFetch<RecruiterApiRecord>(`/applications/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body: body ?? "" }),
+    });
+  },
+
+  unlockCandidateContact: (recruiter_application_id: number) =>
+    recruiterFetch<RecruiterApiRecord>("/unlocks", {
+      method: "POST",
+      body: JSON.stringify({ recruiter_application_id }),
+    }),
+
+  bulkApplications: (payload: {
+    ids: number[];
+    action?: string;
+    status?: string;
+    notes?: string;
+    recruiter_notes?: string;
+    interview_at?: string;
+    interview_link?: string;
+  }) =>
     recruiterFetch<{ updated: number }>("/applications/bulk", {
       method: "POST",
       body: JSON.stringify(payload),

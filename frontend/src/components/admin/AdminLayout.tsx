@@ -14,6 +14,7 @@ import {
   Compass,
   LogOut,
   ChevronDown,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
@@ -34,6 +35,7 @@ const navItems = [
   },
   { to: "/admin/mentors", label: "Mentors", icon: GraduationCap },
   { to: "/admin/job-seekers", label: "Job Seekers", icon: UsersRound },
+  { to: "/admin/withdrawals", label: "Withdrawals", icon: Wallet },
   { to: "/admin/settings", label: "Settings", icon: Settings },
 ] as const;
 

@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api\Recruiter;
 
 use App\Models\Wallet;
 use App\Models\WithdrawRequest;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class RecruiterWithdrawController extends RecruiterBaseController
 {
     public const MIN_WITHDRAW = 500;
+
+    public function __construct(private NotificationService $notifications)
+    {
+    }
 
     public function index(Request $request)
     {
@@ -119,6 +124,14 @@ class RecruiterWithdrawController extends RecruiterBaseController
         }
 
         $withdraw = WithdrawRequest::create($payload);
+
+        $this->notifications->notify(
+            $user,
+            'Withdrawal request submitted',
+            'Your withdrawal request of ₹' . number_format($amount, 2) . ' is pending review.',
+            'withdraw',
+            ['withdraw_request_id' => $withdraw->id, 'status' => 'pending']
+        );
 
         return $this->success($this->transform($withdraw), 'Withdrawal request submitted successfully.', 201);
     }

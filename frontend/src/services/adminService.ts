@@ -201,4 +201,68 @@ export const adminService = {
       `/api/admin/job-seekers${toQuery(params)}`,
     );
   },
+
+  listWithdrawals(
+    params: { search?: string; status?: string; page?: number; per_page?: number } = {},
+  ) {
+    return apiFetch<ApiSuccess<Paginated<AdminWithdrawItem>>>(
+      `/api/admin/withdrawals${toQuery(params)}`,
+    );
+  },
+
+  reviewWithdrawal(
+    id: number,
+    body: { status: "approved" | "rejected"; admin_remarks?: string },
+  ) {
+    return apiFetch<ApiSuccess<{ id: number; status: string; admin_remarks?: string | null }>>(
+      `/api/admin/withdrawals/${id}/review`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  listUnlocks(
+    params: { search?: string; status?: string; page?: number; per_page?: number } = {},
+  ) {
+    return apiFetch<
+      ApiSuccess<{
+        items: AdminUnlockItem[];
+        pagination: Paginated<AdminUnlockItem>["pagination"];
+        stats: { total_amount: number; total_count: number };
+      }>
+    >(`/api/admin/unlocks${toQuery(params)}`);
+  },
+};
+
+export type AdminWithdrawItem = {
+  id: number;
+  amount: number;
+  status: string;
+  bank_name?: string | null;
+  account_holder?: string | null;
+  account_number?: string | null;
+  ifsc?: string | null;
+  upi?: string | null;
+  admin_remarks?: string | null;
+  created_at?: string | null;
+  processed_at?: string | null;
+  user?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    role?: string | null;
+  } | null;
+};
+
+export type AdminUnlockItem = {
+  id: number;
+  amount: number;
+  status: string;
+  unlocked_at?: string | null;
+  created_at?: string | null;
+  recruiter?: { id: number; name: string; email?: string | null } | null;
+  candidate?: { id: number; name: string; email?: string | null } | null;
+  opportunity?: { id: number; title?: string | null; company_name?: string | null } | null;
 };

@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Eye,
   FileText,
   MapPin,
   Search,
@@ -13,9 +14,9 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ApplicationDetailSheet } from "@/components/recruiter/ApplicationDetailSheet";
 import { RecruiterLayout } from "@/components/recruiter/RecruiterLayout";
 import {
-  RecruiterConfirmDialog,
   RecruiterEmptyState,
   RecruiterErrorState,
   RecruiterLoadingSkeleton,
@@ -77,11 +78,23 @@ type RejectTarget = { type: "single"; application: ApplicationItem } | { type: "
 
 const statusOptions = [
   { value: "all", label: "All statuses" },
-  { value: "new", label: "New" },
+  { value: "new", label: "Applied" },
+  { value: "under_review", label: "Under Review" },
   { value: "shortlisted", label: "Shortlisted" },
-  { value: "interview", label: "Interview" },
+  { value: "interview", label: "Interview Scheduled" },
+  { value: "interview_completed", label: "Interview Completed" },
+  { value: "accepted", label: "Accepted" },
   { value: "rejected", label: "Rejected" },
+  { value: "withdrawn", label: "Withdrawn" },
   { value: "hired", label: "Hired" },
+  { value: "completed", label: "Completed" },
+] as const;
+
+const typeOptions = [
+  { value: "all", label: "All types" },
+  { value: "job", label: "Job Posting" },
+  { value: "internship", label: "Internship" },
+  { value: "freelance", label: "Freelance Project" },
 ] as const;
 
 const perPage = 10;
@@ -93,6 +106,8 @@ export function ApplicationsPage() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [jobId, setJobId] = useState("all");
+  const [opportunityType, setOpportunityType] = useState("all");
+  const [sort, setSort] = useState("latest");
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -105,6 +120,7 @@ export function ApplicationsPage() {
   const [scheduleTarget, setScheduleTarget] = useState<ApplicationItem | null>(null);
   const [interviewAt, setInterviewAt] = useState("");
   const [interviewLink, setInterviewLink] = useState("");
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -116,6 +132,8 @@ export function ApplicationsPage() {
         search: appliedSearch || undefined,
         status: status === "all" ? undefined : status,
         opportunity_id: jobId === "all" ? undefined : jobId,
+        opportunity_type: opportunityType === "all" ? undefined : opportunityType,
+        sort,
       });
       const payload = normalizePaginated<ApplicationItem>(res.data as Paginated<ApplicationItem>);
       setApplications(payload.items);
@@ -130,7 +148,7 @@ export function ApplicationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [appliedSearch, jobId, page, status]);
+  }, [appliedSearch, jobId, opportunityType, page, sort, status]);
 
   const loadOpportunities = useCallback(async () => {
     try {
@@ -197,7 +215,11 @@ export function ApplicationsPage() {
         );
         toast.success("Application rejected");
       } else {
-        await recruiterService.bulkApplications({ ids: selected, action: "reject" });
+        await recruiterService.bulkApplications({
+          ids: selected,
+          action: "reject",
+          notes: rejectReason.trim() || undefined,
+        });
         toast.success("Selected applications rejected");
       }
       setRejectTarget(null);
@@ -322,7 +344,7 @@ export function ApplicationsPage() {
         onSubmit={onSearch}
         className="mt-6 rounded-2xl border border-border bg-card p-4 shadow-card sm:p-5"
       >
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_180px_240px_auto]">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_160px_160px_200px_140px_auto]">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -351,6 +373,24 @@ export function ApplicationsPage() {
             </SelectContent>
           </Select>
           <Select
+            value={opportunityType}
+            onValueChange={(value) => {
+              setOpportunityType(value);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
             value={jobId}
             onValueChange={(value) => {
               setJobId(value);
@@ -367,6 +407,24 @@ export function ApplicationsPage() {
                   {opportunity.title}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={sort}
+            onValueChange={(value) => {
+              setSort(value);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Newest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="rating">Rating</SelectItem>
+              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="interview">Interview date</SelectItem>
             </SelectContent>
           </Select>
           <Button type="submit" variant="outline">
@@ -499,6 +557,7 @@ export function ApplicationsPage() {
                         <RowActions
                           application={application}
                           saving={saving}
+                          onView={() => setDetailId(application.id)}
                           onShortlist={() => shortlistApplication(application)}
                           onHire={() => hireApplication(application)}
                           onReject={() => setRejectTarget({ type: "single", application })}
@@ -560,6 +619,7 @@ export function ApplicationsPage() {
                       <RowActions
                         application={application}
                         saving={saving}
+                        onView={() => setDetailId(application.id)}
                         onShortlist={() => shortlistApplication(application)}
                         onHire={() => hireApplication(application)}
                         onReject={() => setRejectTarget({ type: "single", application })}
@@ -701,6 +761,15 @@ export function ApplicationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ApplicationDetailSheet
+        applicationId={detailId}
+        open={detailId != null}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null);
+        }}
+        onChanged={loadApplications}
+      />
     </RecruiterLayout>
   );
 }
@@ -800,6 +869,7 @@ function SkillList({ skills }: { skills?: string[] | string | null }) {
 function RowActions({
   application,
   saving,
+  onView,
   onShortlist,
   onHire,
   onReject,
@@ -808,6 +878,7 @@ function RowActions({
 }: {
   application: ApplicationItem;
   saving: boolean;
+  onView: () => void;
   onShortlist: () => void;
   onHire: () => void;
   onReject: () => void;
@@ -818,6 +889,9 @@ function RowActions({
 
   return (
     <div className={mobile ? "mt-4 grid grid-cols-2 gap-2" : "flex flex-wrap justify-end gap-1"}>
+      <Button type="button" variant="outline" size="sm" onClick={onView} disabled={saving}>
+        <Eye className="h-4 w-4" /> View
+      </Button>
       <Button
         type="button"
         variant="outline"
@@ -896,12 +970,23 @@ function RatingStars({
 function StatusPill({ status }: { status: string }) {
   const map: Record<string, string> = {
     new: "bg-primary-soft text-primary",
+    under_review: "bg-primary-soft text-primary",
     shortlisted: "bg-secondary-soft text-secondary",
     interview: "bg-accent-soft text-accent-foreground",
+    interview_completed: "bg-accent-soft text-accent-foreground",
+    accepted: "bg-secondary-soft text-secondary",
     rejected: "bg-destructive/10 text-destructive",
+    withdrawn: "bg-muted text-muted-foreground",
     hired: "bg-secondary-soft text-secondary",
+    completed: "bg-secondary-soft text-secondary",
   };
   const normalized = status.toLowerCase();
+  const labels: Record<string, string> = {
+    new: "Applied",
+    under_review: "Under Review",
+    interview: "Interview Scheduled",
+    interview_completed: "Interview Completed",
+  };
 
   return (
     <span
@@ -909,7 +994,7 @@ function StatusPill({ status }: { status: string }) {
         map[normalized] ?? "bg-muted text-muted-foreground"
       }`}
     >
-      {titleCase(status)}
+      {labels[normalized] ?? titleCase(status)}
     </span>
   );
 }

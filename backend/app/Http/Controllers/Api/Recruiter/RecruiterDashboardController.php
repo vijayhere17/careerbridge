@@ -148,10 +148,24 @@ class RecruiterDashboardController extends RecruiterBaseController
                 'hired_applications' => (clone $applications)->where('status', 'hired')->count(),
                 'pipeline' => [
                     'new' => (clone $applications)->where('status', 'new')->count(),
+                    'under_review' => (clone $applications)->where('status', 'under_review')->count(),
                     'shortlisted' => (clone $applications)->where('status', 'shortlisted')->count(),
                     'interview' => $interviewInvitations,
+                    'interview_completed' => (clone $applications)->where('status', 'interview_completed')->count(),
+                    'accepted' => (clone $applications)->where('status', 'accepted')->count(),
                     'rejected' => (clone $applications)->where('status', 'rejected')->count(),
+                    'withdrawn' => (clone $applications)->where('status', 'withdrawn')->count(),
                     'hired' => (clone $applications)->where('status', 'hired')->count(),
+                    'completed' => (clone $applications)->where('status', 'completed')->count(),
+                ],
+                'conversion' => [
+                    'interview_rate' => $totalApplications > 0
+                        ? round((((clone $applications)->whereIn('status', ['interview', 'interview_completed', 'accepted', 'hired', 'completed'])->count()) / $totalApplications) * 100, 1)
+                        : 0,
+                    'hiring_rate' => $totalApplications > 0
+                        ? round((((clone $applications)->whereIn('status', ['hired', 'completed'])->count()) / $totalApplications) * 100, 1)
+                        : 0,
+                    'contact_unlock_count' => (clone $earnedUnlocks)->count(),
                 ],
             ],
             'application_trends' => $this->applicationTrends($opportunityIds),
