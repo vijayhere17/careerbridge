@@ -328,8 +328,16 @@ const [loading, setLoading] = useState(true);
   loadSessions();
 }, []);
 
-  const handleComplete = (id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+  const handleComplete = async (id: string) => {
+    try {
+      await apiFetch(`/api/mentor/upcoming-sessions/${id}/complete`, {
+        method: "POST",
+      });
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      setSelected(null);
+    } catch (error) {
+      console.error("Complete session failed:", error);
+    }
   };
 
   const todaySessions    = sessions.filter((s) => isToday(s.date));

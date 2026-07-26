@@ -51,6 +51,13 @@ const [distribution, setDistribution] = useState<Distribution[]>([]);
 
 const [loading, setLoading] = useState(true);
 
+  const [insights, setInsights] = useState({
+    strongest_area: "Mentoring sessions",
+    candidate_satisfaction: 0,
+    repeat_client_percentage: 0,
+    this_month_reviews: 0,
+  });
+
   const filteredReviews = useMemo(() => {
 
     return reviews.filter((item) =>
@@ -59,7 +66,7 @@ const [loading, setLoading] = useState(true);
       item.service.toLowerCase().includes(search.toLowerCase())
     );
 
-  }, [search]);
+  }, [search, reviews]);
 
 
 
@@ -73,10 +80,24 @@ const loadReviews = async () => {
     const response = await apiFetch<{
       summary: Summary;
       distribution: Distribution[];
+      insights?: {
+        strongest_area?: string;
+        candidate_satisfaction?: number;
+        repeat_client_percentage?: number;
+        this_month_reviews?: number;
+      };
       reviews: Review[];
     }>("/api/mentor/reviews");
 
     setSummary(response.summary);
+    if (response.insights) {
+      setInsights({
+        strongest_area: response.insights.strongest_area ?? "Mentoring sessions",
+        candidate_satisfaction: response.insights.candidate_satisfaction ?? response.summary.positive_percentage,
+        repeat_client_percentage: response.insights.repeat_client_percentage ?? 0,
+        this_month_reviews: response.insights.this_month_reviews ?? response.summary.this_month,
+      });
+    }
 
     setDistribution(response.distribution);
 
@@ -410,7 +431,7 @@ if (loading) {
               </h3>
 
               <p className="mt-2 text-muted-foreground">
-                Mock Interview Preparation consistently receives
+                {insights.strongest_area} consistently receives
                 the highest ratings from candidates.
               </p>
 
@@ -423,8 +444,8 @@ if (loading) {
               </h3>
 
               <p className="mt-2 text-muted-foreground">
-                98% of candidates recommend you for interview
-                preparation and resume reviews.
+                {insights.candidate_satisfaction}% of candidates leave a
+                positive rating (4★ or higher).
               </p>
 
             </div>
@@ -432,11 +453,11 @@ if (loading) {
             <div className="rounded-xl bg-blue-50 p-5">
 
               <h3 className="font-semibold">
-                Average Response Time
+                This Month
               </h3>
 
               <p className="mt-2 text-muted-foreground">
-                12 minutes average response to new mentoring requests.
+                {insights.this_month_reviews} new reviews received this month.
               </p>
 
             </div>
@@ -448,7 +469,7 @@ if (loading) {
               </h3>
 
               <p className="mt-2 text-muted-foreground">
-                42% of candidates book more than one mentoring session.
+                {insights.repeat_client_percentage}% of candidates book more than one mentoring session.
               </p>
 
             </div>

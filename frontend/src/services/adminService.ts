@@ -15,6 +15,13 @@ export type AdminReviewAction =
   | "reactivate"
   | "internal_note";
 
+export type AdminMentorReviewAction =
+  | "approve"
+  | "reject"
+  | "request_changes"
+  | "suspend"
+  | "activate";
+
 export type AdminRecruiterListItem = {
   user_id: number;
   company_logo?: string | null;
@@ -93,6 +100,17 @@ export type AdminUserListItem = {
   mobile?: string | null;
   created_at?: string | null;
   verified_email?: boolean;
+};
+
+export type AdminMentorListItem = AdminUserListItem & {
+  onboarding_status?: string | null;
+  verified?: boolean;
+  available?: boolean;
+  company?: string | null;
+  designation?: string | null;
+  industry?: string | null;
+  rating?: number;
+  session_count?: number;
 };
 
 type ApiSuccess<T> = { success: boolean; message?: string; data: T };
@@ -190,9 +208,32 @@ export const adminService = {
     );
   },
 
-  listMentors(params: { search?: string; page?: number; per_page?: number } = {}) {
-    return apiFetch<ApiSuccess<Paginated<AdminUserListItem>>>(
+  listMentors(params: {
+    search?: string;
+    status?: string;
+    page?: number;
+    per_page?: number;
+  } = {}) {
+    return apiFetch<ApiSuccess<Paginated<AdminMentorListItem>>>(
       `/api/admin/mentors${toQuery(params)}`,
+    );
+  },
+
+  reviewMentor(
+    userId: number,
+    body: {
+      action: AdminMentorReviewAction;
+      notes?: string;
+      admin_remarks?: string;
+      required_changes?: string;
+    },
+  ) {
+    return apiFetch<ApiSuccess<Record<string, unknown>>>(
+      `/api/admin/mentors/${userId}/review`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
     );
   },
 

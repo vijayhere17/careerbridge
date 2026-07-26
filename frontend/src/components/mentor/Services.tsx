@@ -25,54 +25,13 @@ interface ApiService {
   description: string | null;
   price: number | string;
   duration: number | string;
-  session_type: string;
-  status: string;
+  type?: string;
+  session_type?: string;
+  active?: boolean;
+  status?: string;
   bookings?: number;
   bookings_count?: number;
 }
-
-const INITIAL_SERVICES: Service[] = [
-  {
-    id: "s1",
-    title: "PM Mock Interview",
-    description: "Full PM interview simulation with detailed feedback on product sense, execution, and behavioral questions.",
-    type: "Video Call",
-    duration: 60,
-    price: 1499,
-    active: true,
-    bookings: 48,
-  },
-  {
-    id: "s2",
-    title: "Resume & Portfolio Review",
-    description: "In-depth review and optimisation of your PM resume and case study portfolio.",
-    type: "Video Call",
-    duration: 45,
-    price: 999,
-    active: true,
-    bookings: 32,
-  },
-  {
-    id: "s3",
-    title: "Career Guidance Session",
-    description: "1-on-1 career path planning, role transition advice, and personalised action plan.",
-    type: "Audio Call",
-    duration: 30,
-    price: 699,
-    active: true,
-    bookings: 21,
-  },
-  {
-    id: "s4",
-    title: "Quick Chat",
-    description: "15-minute chat for a specific question or quick advice.",
-    type: "Chat",
-    duration: 15,
-    price: 299,
-    active: false,
-    bookings: 5,
-  },
-];
 
 const SESSION_TYPE_OPTIONS: { type: SessionType; icon: React.ElementType; label: string }[] = [
   { type: "Video Call",  icon: Video,          label: "Video Call" },
@@ -95,11 +54,15 @@ const normalizeService = (service: ApiService): Service => {
     "Chat",
   ];
 
-  const type: SessionType = allowedTypes.includes(
-    service.session_type as SessionType
-  )
-    ? (service.session_type as SessionType)
+  const rawType = service.type ?? service.session_type ?? "Video Call";
+  const type: SessionType = allowedTypes.includes(rawType as SessionType)
+    ? (rawType as SessionType)
     : "Video Call";
+
+  const active =
+    typeof service.active === "boolean"
+      ? service.active
+      : service.status === "active";
 
   return {
     id: String(service.id),
@@ -108,7 +71,7 @@ const normalizeService = (service: ApiService): Service => {
     type,
     duration: Number(service.duration ?? 0),
     price: Number(service.price ?? 0),
-    active: service.status === "active",
+    active,
     bookings: Number(
       service.bookings_count ?? service.bookings ?? 0
     ),
@@ -488,8 +451,8 @@ const priceRange = !prices.length
         description: data.description,
         price: Number(data.price),
         duration: Number(data.duration),
-        session_type: data.type,
-        status: data.active ? "active" : "inactive",
+        type: data.type,
+        active: data.active,
       }),
     });
 

@@ -6,10 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MentorUpcomingSessionResource;
 use App\Models\MentorBooking;
 use App\Models\User;
+use App\Models\WalletTransaction;
+use App\Services\NotificationService;
+use App\Services\WalletService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MentorUpcomingSessionController extends Controller
 {
+    public function __construct(
+        private WalletService $walletService,
+        private NotificationService $notifications,
+    ) {
+    }
+
     private function authUser(Request $request): ?User
     {
         $token = $request->bearerToken() ?: $request->header('X-API-TOKEN');
@@ -20,57 +30,102 @@ class MentorUpcomingSessionController extends Controller
     }
 
     public function complete(Request $request, $id)
-{
-    $user = $this->authUser($request);
-
-    if (!$user) {
-        return response()->json([
-            'message' => 'Unauthorized'
-        ], 401);
-    }
-
-    $mentorProfile = $user->mentorProfile;
-
-    if (!$mentorProfile) {
-        return response()->json([
-            'message' => 'Mentor profile not found.'
-        ], 404);
-    }
-
-    $booking = MentorBooking::where('id', $id)
-        ->where('mentor_id', $mentorProfile->id)
-        ->where('status', 'confirmed')
-        ->first();
-
-    if (!$booking) {
-        return response()->json([
-            'message' => 'Upcoming session not found.'
-        ], 404);
-    }
-
-    $booking->update([
-        'status' => 'completed',
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Session completed successfully.',
-    ]);
-}
-
-    public function index(Request $request)
     {
         $user = $this->authUser($request);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
         $mentorProfile = $user->mentorProfile;
 
-        if (!$mentorProfile) {
+        if (! $mentorProfile) {
+            return response()->json([
+                'message' => 'Mentor profile not found.',
+            ], 404);
+        }
+
+        $booking = MentorBooking::with(['candidate', 'service'])
+            ->where('id', $id)
+            ->where('mentor_id', $mentorProfile->id)
+            ->where('status', 'confirmed')
+            ->first();
+
+        if (! $booking) {
+            return response()->json([
+                'message' => 'Upcoming session not found.',
+            ], 404);
+        }
+
+        $reference = 'SESSION-' . $booking->id;
+        $alreadyCredited = WalletTransaction::where('user_id', $user->id)
+            ->where('reference', $reference)
+            ->exists();
+
+        DB::transaction(function () use ($booking, $user, $mentorProfile, $reference, $alreadyCredited) {
+            $booking->update([
+                'status' => 'completed',
+                'payment_status' => 'released',
+            ]);
+
+            $mentorProfile->forceFill([
+                'session_count' => (int) $mentorProfile->session_count + 1,
+            ])->save();
+
+            if (! $alreadyCredited && (float) $booking->amount > 0) {
+                $payout = round(((float) $booking->amount) * 0.7, 2);
+
+                $this->walletService->credit(
+                    $user,
+                    $payout,
+                    'session',
+                    'Session earnings',
+                    ($booking->service?->title ?? 'Mentoring session') . ' with ' . ($booking->candidate?->name ?? 'candidate'),
+                    'success',
+                    $reference
+                );
+            }
+        });
+
+        if ($booking->candidate) {
+            $this->notifications->notify(
+                $booking->candidate,
+                'Session completed',
+                'Your mentoring session has been marked complete. You can leave a review.',
+                'booking',
+                ['booking_id' => $booking->id, 'status' => 'completed']
+            );
+        }
+
+        $this->notifications->notify(
+            $user,
+            'Session completed',
+            'Session marked complete. Earnings have been credited to your wallet.',
+            'payment',
+            ['booking_id' => $booking->id, 'status' => 'completed']
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Session completed successfully.',
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        $user = $this->authUser($request);
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthorized',
+            ], 401);
+        }
+
+        $mentorProfile = $user->mentorProfile;
+
+        if (! $mentorProfile) {
             return response()->json([
                 'sessions' => [],
             ]);
@@ -80,11 +135,11 @@ class MentorUpcomingSessionController extends Controller
             'candidate',
             'service',
         ])
-        ->where('mentor_id', $mentorProfile->id)
-        ->where('status', 'confirmed')
-        ->orderBy('date')
-        ->orderBy('time')
-        ->get();
+            ->where('mentor_id', $mentorProfile->id)
+            ->where('status', 'confirmed')
+            ->orderBy('date')
+            ->orderBy('time')
+            ->get();
 
         return response()->json([
             'sessions' => MentorUpcomingSessionResource::collection($sessions),
