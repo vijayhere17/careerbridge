@@ -33,7 +33,7 @@ class MentorReviewController extends Controller
         }
 
         $reviews = MentorReview::with([
-    'mentor',
+    'mentor.user',
     'booking.service',
 ])
             ->where('user_id', $user->id)

@@ -97,6 +97,27 @@ class MentorUpcomingSessionController extends Controller
                 'booking',
                 ['booking_id' => $booking->id, 'status' => 'completed']
             );
+
+            \App\Models\MentorReview::firstOrCreate(
+                [
+                    'booking_id' => $booking->id,
+                    'user_id' => $booking->candidate_id,
+                ],
+                [
+                    'mentor_id' => $booking->mentor_id,
+                    'rating' => null,
+                    'comment' => null,
+                    'status' => 'pending',
+                ]
+            );
+
+            $this->notifications->notify(
+                $booking->candidate,
+                'Review requested',
+                'Please rate your session and share feedback for your mentor.',
+                'review',
+                ['booking_id' => $booking->id]
+            );
         }
 
         $this->notifications->notify(

@@ -122,12 +122,21 @@ function TopUpModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (a
 
   const numAmount = parseInt(amount) || 0;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     if (numAmount < 100) { setError("Minimum top-up amount is ₹100."); return; }
     if (numAmount > 50000) { setError("Maximum top-up amount is ₹50,000."); return; }
     setError("");
     setStep("processing");
-    setTimeout(() => { setStep("success"); }, 1800);
+    try {
+      await apiFetch("/api/wallet/topup", {
+        method: "POST",
+        body: JSON.stringify({ amount: numAmount, method }),
+      });
+      setStep("success");
+    } catch (err: any) {
+      setError(err?.message || "Top-up failed. Please try again.");
+      setStep("form");
+    }
   };
 
   return (
@@ -266,19 +275,30 @@ const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
 
-  const handleTopUpSuccess = (amount: number) => {
-    setBalance((b) => b + amount);
-    setTransactions((prev) => [{
-      id: `t${Date.now()}`,
-      type: "credit",
-      category: "deposit",
-      title: "Wallet Top-up",
-      subtitle: PAYMENT_METHODS.find(() => true)?.label ?? "UPI",
-      amount,
-      date: new Date().toISOString().split("T")[0],
-      status: "success",
-      ref: `CB${Date.now()}`,
-    }, ...prev]);
+  const handleTopUpSuccess = async (amount: number) => {
+    try {
+      const [wallet, txs] = await Promise.all([
+        apiFetch<{ balance: number; summary?: typeof summary }>("/api/wallet"),
+        apiFetch<{ transactions: Transaction[] }>("/api/wallet/transactions"),
+      ]);
+      setBalance(wallet.balance);
+      if (wallet.summary) setSummary(wallet.summary as any);
+      setTransactions(
+        (txs.transactions ?? []).map((t: any) => ({
+          id: String(t.id),
+          type: t.type,
+          category: t.category,
+          title: t.title,
+          subtitle: t.subtitle ?? "",
+          amount: Number(t.amount),
+          date: t.date || t.created_at?.slice?.(0, 10) || "",
+          status: t.status,
+          ref: t.ref || t.reference || "",
+        })),
+      );
+    } catch {
+      setBalance((b) => b + amount);
+    }
     setShowTopUp(false);
   };
 

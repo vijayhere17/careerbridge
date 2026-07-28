@@ -15,7 +15,7 @@ type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Completed" | "Upcomi
 interface Service {
   id: string;
   title: string;
-  duration: string;
+  duration: number | string;
   price: number;
   type: SessionType;
   description: string;
@@ -23,7 +23,8 @@ interface Service {
 
 interface Review {
   id: string;
-  candidateName: string;
+  candidateName?: string;
+  candidate?: string;
   rating: number;
   comment: string;
   date: string;
@@ -36,7 +37,7 @@ interface Mentor {
   role: string;
   company: string;
   industry: string;
-  experience: string;
+  experience: string | number;
   location: string;
   languages: string[];
   skills: string[];
@@ -48,6 +49,8 @@ interface Mentor {
   available: boolean;
   services: Service[];
   testimonials: Review[];
+  pricePerSession?: number;
+  experienceLabel?: string;
 }
 
 interface Booking {
@@ -121,7 +124,9 @@ function MentorCard({
 }: {
   mentor: Mentor; isSaved: boolean; onSave: () => void; onView: () => void;
 }) {
-  const minPrice = Math.min(...mentor.services.map((s) => s.price));
+  const minPrice = mentor.services.length
+    ? Math.min(...mentor.services.map((s) => s.price))
+    : (mentor.pricePerSession ?? 0);
   return (
     <div className="rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/40 hover:shadow-sm">
       <div className="flex items-start gap-3">
@@ -193,7 +198,9 @@ function MentorProfile({
   mentor: Mentor; isSaved: boolean; onSave: () => void; onBook: (service: Service) => void; onClose: () => void;
 }) {
   const [tab, setTab] = useState<"about" | "services" | "reviews">("about");
-  const minPrice = Math.min(...mentor.services.map((s) => s.price));
+  const minPrice = mentor.services.length
+    ? Math.min(...mentor.services.map((s) => s.price))
+    : (mentor.pricePerSession ?? 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end lg:items-stretch justify-end bg-black/40" onClick={onClose}>
@@ -366,7 +373,7 @@ function MentorProfile({
               {mentor.testimonials.map((review) => (
                 <div key={review.id} className="rounded-xl border border-border p-3">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="font-semibold text-xs">{review.candidateName}</p>
+                    <p className="font-semibold text-xs">{review.candidateName || review.candidate || "Candidate"}</p>
                     <span className="text-[11px] text-muted-foreground">{review.date}</span>
                   </div>
                   <StarRating rating={review.rating} />
@@ -395,22 +402,83 @@ function MentorProfile({
 function BookingModal({
   mentor, service, onClose, onConfirm,
 }: {
-  mentor: Mentor; service: Service; onClose: () => void; onConfirm: (booking: Omit<Booking, "id" | "status">) => void;
+  mentor: Mentor; service: Service; onClose: () => void;
+  onConfirm: (booking: Omit<Booking, "id" | "status"> & { serviceId: string }) => Promise<void>;
 }) {
-  const [step, setStep] = useState<"details" | "processing" | "success">("details");
+  const [step, setStep] = useState<"details" | "summary" | "processing" | "success" | "error">("details");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [requirements, setRequirements] = useState("");
   const [selectedService, setSelectedService] = useState(service);
+  const [schedule, setSchedule] = useState<Record<string, { enabled: boolean; slots: string[] }>>({});
+  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
-  const handleConfirm = () => {
-    if (!date || !time) return;
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const [avail, wallet] = await Promise.all([
+          apiFetch<{ schedule: Record<string, { enabled: boolean; slots: string[] }> }>(
+            `/api/mentors/${mentor.id}/availability`,
+          ),
+          apiFetch<{ balance: number }>("/api/wallet"),
+        ]);
+        setSchedule(avail.schedule ?? {});
+        setWalletBalance(wallet.balance ?? 0);
+      } catch (err) {
+        console.error(err);
+        setAvailableTimes([
+          "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+          "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM",
+        ]);
+      }
+    }
+    void loadMeta();
+  }, [mentor.id]);
+
+  useEffect(() => {
+    if (!date) {
+      setAvailableTimes([]);
+      setTime("");
+      return;
+    }
+    const dayName = new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "long" });
+    const day = schedule[dayName];
+    if (day?.enabled && day.slots.length > 0) {
+      setAvailableTimes(day.slots);
+    } else if (Object.keys(schedule).length === 0) {
+      setAvailableTimes([
+        "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+        "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM",
+      ]);
+    } else {
+      setAvailableTimes([]);
+    }
+    setTime("");
+  }, [date, schedule]);
+
+  const platformFee = Math.round(selectedService.price * 0.05);
+  const total = selectedService.price + platformFee;
+
+  const goToSummary = () => {
+    if (!date || !time) {
+      setError("Please select date and time.");
+      return;
+    }
+    setError("");
+    setStep("summary");
+  };
+
+  const handleConfirm = async () => {
+    setError("");
     setStep("processing");
-    setTimeout(() => {
-      onConfirm({
+    try {
+      await onConfirm({
         mentorId: mentor.id,
         mentorName: mentor.name,
         service: selectedService.title,
+        serviceId: selectedService.id,
         sessionType: selectedService.type,
         date,
         time,
@@ -418,10 +486,11 @@ function BookingModal({
         requirements,
       });
       setStep("success");
-    }, 1600);
+    } catch (err: any) {
+      setError(err?.message || "Booking failed. Please try again.");
+      setStep("error");
+    }
   };
-
-  const times = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM"];
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 lg:items-center p-4 overflow-y-auto">
@@ -468,25 +537,31 @@ function BookingModal({
                 <input
                   type="date"
                   value={date}
+                  min={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setDate(e.target.value)}
-                  min={new Date().toISOString().split("T")[0]}
                   className="dash-input w-full"
                 />
               </div>
 
               <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Select time</p>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {times.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTime(t)}
-                      className={`rounded-lg border py-2 text-xs font-semibold transition-all ${time === t ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary/40"}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Available time</p>
+                {date && availableTimes.length === 0 ? (
+                  <p className="text-xs text-amber-600">No slots available on this day. Try another date.</p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableTimes.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setTime(t)}
+                        className={`rounded-lg border py-2 text-xs font-semibold transition-all ${
+                          time === t ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -495,60 +570,97 @@ function BookingModal({
                   value={requirements}
                   onChange={(e) => setRequirements(e.target.value)}
                   rows={3}
-                  placeholder="Share specific topics, goals, or context for this session…"
+                  placeholder="What would you like to focus on?"
                   className="dash-input w-full resize-none"
                 />
               </div>
 
-              <div className="rounded-xl border border-border p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold">{selectedService.title}</p>
-                  <p className="text-[11px] text-muted-foreground">{selectedService.duration} min · {selectedService.type}</p>
-                </div>
-                <p className="font-bold text-primary text-lg">₹{selectedService.price.toLocaleString()}</p>
-              </div>
+              {error && <p className="text-xs text-red-600">{error}</p>}
 
-              <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted transition-colors">
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirm}
-                  disabled={!date || !time}
-                  className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Confirm & Pay
-                </button>
+              <button
+                onClick={goToSummary}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Continue
+              </button>
+            </div>
+          </>
+        )}
+
+        {step === "summary" && (
+          <>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-bold text-sm">Booking Summary</h3>
+              <button onClick={() => setStep("details")} className="text-xs font-semibold text-primary">Back</button>
+            </div>
+            <div className="p-4 space-y-3">
+              {[
+                ["Mentor", mentor.name],
+                ["Service", selectedService.title],
+                ["Date", date],
+                ["Time", time],
+                ["Duration", `${selectedService.duration} min`],
+                ["Session fee", `₹${selectedService.price.toLocaleString()}`],
+                ["Platform fee", `₹${platformFee.toLocaleString()}`],
+                ["Total", `₹${total.toLocaleString()}`],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{label}</span>
+                  <span className="font-semibold">{value}</span>
+                </div>
+              ))}
+              <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
+                Payment is deducted from your wallet and held in escrow until the session is completed.
+                {walletBalance !== null && (
+                  <p className="mt-1 font-semibold text-foreground">Wallet balance: ₹{walletBalance.toLocaleString()}</p>
+                )}
               </div>
+              <p className="text-[11px] text-muted-foreground">
+                Cancellation is free before mentor acceptance. After confirmation, refunds follow CareerBridge policy.
+              </p>
+              <button
+                onClick={() => void handleConfirm()}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Pay & Confirm Booking
+              </button>
             </div>
           </>
         )}
 
         {step === "processing" && (
-          <div className="flex flex-col items-center justify-center py-14 px-6">
-            <div className="h-9 w-9 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4" />
+          <div className="p-10 text-center space-y-3">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="font-semibold text-sm">Processing payment…</p>
-            <p className="text-xs text-muted-foreground mt-1">Securing your booking in escrow</p>
+            <p className="text-xs text-muted-foreground">Securing your booking</p>
+          </div>
+        )}
+
+        {step === "error" && (
+          <div className="p-6 space-y-3 text-center">
+            <p className="font-semibold text-sm text-red-600">Payment failed</p>
+            <p className="text-xs text-muted-foreground">{error}</p>
+            <button
+              onClick={() => setStep("summary")}
+              className="w-full rounded-xl border border-border py-2.5 text-sm font-semibold"
+            >
+              Try again
+            </button>
           </div>
         )}
 
         {step === "success" && (
-          <div className="flex flex-col items-center text-center py-10 px-6">
-            <div className="grid h-14 w-14 place-items-center rounded-full bg-primary/10 mb-4">
-              <CheckCircle2 className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="font-bold text-base">Booking Confirmed!</h3>
-            <p className="text-sm text-muted-foreground mt-2 mb-1">
-              Your session with <span className="font-semibold text-foreground">{mentor.name}</span> is booked.
-            </p>
-            <p className="text-xs text-muted-foreground mb-5">
-              Payment of ₹{selectedService.price.toLocaleString()} is held in CareerBridge escrow and will be released after the session.
+          <div className="p-6 space-y-3 text-center">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
+            <h3 className="font-bold text-lg">Booking Confirmed</h3>
+            <p className="text-sm text-muted-foreground">
+              Your request was sent to {mentor.name}. You'll be notified when they accept.
             </p>
             <button
               onClick={onClose}
-              className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground"
             >
-              View My Bookings
+              Done
             </button>
           </div>
         )}
@@ -725,27 +837,63 @@ interface FilterState {
 const [bookings, setBookings] = useState<Booking[]>([]);
 
   useEffect(() => {
-  fetch("http://127.0.0.1:8000/api/mentors")
-    .then((res) => res.json())
-    .then((data) => {
-      console.log("Mentors API:", data);
+    async function loadMentors() {
+      try {
+        const data = await apiFetch<{ mentors: any[] }>("/api/mentors");
+        const normalized = (data.mentors ?? []).map((m) => ({
+          ...m,
+          id: String(m.id),
+          experience: m.experienceLabel ?? (m.experience ? `${m.experience}+ yrs` : "—"),
+          languages: m.languages ?? [],
+          skills: m.skills ?? [],
+          services: (m.services ?? []).map((s: any) => ({
+            id: String(s.id),
+            title: s.title,
+            duration: typeof s.duration === "string"
+              ? Number.parseInt(s.duration, 10) || 30
+              : Number(s.duration ?? 30),
+            price: Number(s.price ?? 0),
+            type: (s.type || "Video Call") as SessionType,
+            description: s.description ?? "",
+          })),
+          testimonials: (m.testimonials ?? []).map((t: any) => ({
+            id: String(t.id),
+            candidateName: t.candidateName || t.candidate || "Candidate",
+            rating: Number(t.rating ?? 0),
+            comment: t.comment ?? "",
+            date: t.date || t.submittedDate || "",
+          })),
+          reviews: Number(m.reviews ?? 0),
+          sessions: Number(m.sessions ?? 0),
+          rating: Number(m.rating ?? 0),
+          pricePerSession: Number(m.pricePerSession ?? 0),
+        })) as Mentor[];
+        setMentors(normalized);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    void loadMentors();
+  }, []);
 
-      setMentors(data.mentors);
-
-      setLoading(false);
-    })
-    .catch((err) => {
-      console.error(err);
-      setLoading(false);
-    });
-}, []);
+  useEffect(() => {
+    async function loadSaved() {
+      try {
+        const data = await apiFetch<{ mentors: { id: string | number }[] }>("/api/mentors/saved");
+        setSaved(new Set((data.mentors ?? []).map((m) => String(m.id))));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    void loadSaved();
+  }, []);
 
 useEffect(() => {
   const loadBookings = async () => {
     try {
       const data = await apiFetch<{ bookings: any[] }>("/api/bookings");
-
-      console.log("Bookings API:", data);
 
       setBookings(
   data.bookings.map((b) => ({
@@ -769,8 +917,33 @@ useEffect(() => {
   loadBookings();
 }, []);
 
-  const toggleSave = (id: string) =>
-    setSaved((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleSave = async (id: string) => {
+    const isSaved = saved.has(id);
+    setSaved((prev) => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    try {
+      if (isSaved) {
+        await apiFetch(`/api/mentors/save/${id}`, { method: "DELETE" });
+      } else {
+        await apiFetch("/api/mentors/save", {
+          method: "POST",
+          body: JSON.stringify({ mentor_id: Number(id) }),
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setSaved((prev) => {
+        const next = new Set(prev);
+        if (isSaved) next.add(id);
+        else next.delete(id);
+        return next;
+      });
+    }
+  };
 
   const handleBook = (service: Service) => {
     setBookingService(service);
@@ -778,38 +951,28 @@ useEffect(() => {
 
 
 const handleBookingConfirm = async (
-  booking: Omit<Booking, "id" | "status">
+  booking: Omit<Booking, "id" | "status"> & { serviceId: string }
 ) => {
-  try {
-    const data = await apiFetch<{ booking: any }>("/api/bookings", {
-      method: "POST",
-      body: JSON.stringify({
-        mentor_id: booking.mentorId,
-        service_id: bookingService?.id,
-        date: booking.date,
-        time: booking.time,
-        requirements: booking.requirements,
-        amount: bookingService?.price,
-      }),
-    });
+  const data = await apiFetch<{ booking: any }>("/api/bookings", {
+    method: "POST",
+    body: JSON.stringify({
+      mentor_id: Number(booking.mentorId),
+      service_id: Number(booking.serviceId || bookingService?.id),
+      date: booking.date,
+      time: booking.time,
+      requirements: booking.requirements,
+      amount: booking.amount,
+    }),
+  });
 
-    console.log("Booking Success:", data);
-
-    setBookings((prev) => [
-      {
-        ...booking,
-        id: data.booking.id,
-        status: "Pending",
-      },
-      ...prev,
-    ]);
-
-    alert("Session booked successfully!");
-
-  } catch (error: any) {
-    console.error(error);
-    alert(error?.message || "Booking failed");
-  }
+  setBookings((prev) => [
+    {
+      ...booking,
+      id: String(data.booking.id),
+      status: (data.booking.status as BookingStatus) || "Pending",
+    },
+    ...prev,
+  ]);
 };
 
 const filteredMentors = mentors.filter((m) => {
@@ -823,8 +986,8 @@ const filteredMentors = mentors.filter((m) => {
   }).sort((a, b) => {
     if (filters.sort === "Top Rated") return b.rating - a.rating;
     if (filters.sort === "Most Sessions") return b.sessions - a.sessions;
-    const aMin = Math.min(...a.services.map((s) => s.price));
-    const bMin = Math.min(...b.services.map((s) => s.price));
+    const aMin = a.services.length ? Math.min(...a.services.map((s) => s.price)) : Number.POSITIVE_INFINITY;
+    const bMin = b.services.length ? Math.min(...b.services.map((s) => s.price)) : Number.POSITIVE_INFINITY;
     if (filters.sort === "Price: Low to High") return aMin - bMin;
     if (filters.sort === "Price: High to Low") return bMin - aMin;
     return 0;
@@ -968,8 +1131,8 @@ if (loading) {
         <BookingModal
           mentor={selectedMentor}
           service={bookingService}
-          onClose={() => { setBookingService(null); setSelectedMentor(null); }}
-          onConfirm={(b) => { handleBookingConfirm(b); setBookingService(null); setSelectedMentor(null); setView("bookings"); }}
+          onClose={() => { setBookingService(null); setSelectedMentor(null); setView("bookings"); }}
+          onConfirm={handleBookingConfirm}
         />
       )}
 

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\Api\SeekerNotificationController;
 use App\Http\Controllers\Api\OpportunityController;
 use App\Http\Controllers\Api\SavedOpportunityController;
 use App\Http\Controllers\Api\ApplicationController;
@@ -174,6 +175,12 @@ Route::post('/recruiter-opportunities/applications/{id}/messages', [RecruiterOpp
 
 Route::get('/wallet', [WalletController::class, 'index']);
 Route::get('/wallet/transactions', [WalletController::class, 'transactions']);
+Route::post('/wallet/topup', [WalletController::class, 'topup']);
+
+Route::get('/seeker/notifications', [SeekerNotificationController::class, 'index']);
+Route::post('/seeker/notifications/read-all', [SeekerNotificationController::class, 'markAllRead']);
+Route::post('/seeker/notifications/{id}/read', [SeekerNotificationController::class, 'markRead']);
+Route::delete('/seeker/notifications/{id}', [SeekerNotificationController::class, 'destroy']);
 
 
 
@@ -407,15 +414,16 @@ Route::post('sessions', function (Request $request) use ($resolveAuthenticatedUs
 // ── MENTORS: PUBLIC ───────────────────────────────────────────────────────────
 
 Route::get('mentors',                         [MentorController::class, 'index']);
-Route::get('mentors/{mentor}',                [MentorController::class, 'show']);
+Route::get('mentors/saved',                   [MentorController::class, 'saved']);
+Route::get('mentors/{mentor}/availability',   [MentorController::class, 'availability']);
 Route::get('mentors/{mentor}/services',       [MentorController::class, 'services']);
 Route::get('mentors/{mentor}/reviews',        [MentorController::class, 'reviews']);
+Route::get('mentors/{mentor}',                [MentorController::class, 'show']);
 
 // ── MENTORS: CANDIDATE ACTIONS ────────────────────────────────────────────────
 
 Route::post('mentors/save',                   [MentorController::class, 'save']);
 Route::delete('mentors/save/{mentor}',        [MentorController::class, 'destroySave']);
-Route::get('mentors/saved',                   [MentorController::class, 'saved']);
 
 // ── BOOKINGS: CANDIDATE ───────────────────────────────────────────────────────
 
