@@ -140,16 +140,36 @@ class MentorIncomingRequestController extends Controller
 
         $booking->loadMissing(['candidate', 'service']);
 
-        $booking->update([
-            'status' => 'rejected',
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($booking) {
+            $shouldRefund = in_array($booking->payment_status, ['escrow', 'pending'], true)
+                && (float) $booking->amount > 0
+                && $booking->candidate;
+
+            $booking->update([
+                'status' => 'rejected',
+                'payment_status' => $shouldRefund ? 'refunded' : $booking->payment_status,
+            ]);
+
+            if ($shouldRefund) {
+                app(\App\Services\WalletService::class)->credit(
+                    $booking->candidate,
+                    (float) $booking->amount,
+                    'refund',
+                    'Booking refund',
+                    'Refund for rejected booking #' . $booking->id,
+                    'success',
+                    'REFUND-' . $booking->id
+                );
+            }
+        });
 
         if ($booking->candidate) {
             $this->notifications->notify(
                 $booking->candidate,
                 'Booking rejected',
                 ($user->name ?: 'Your mentor') . ' could not accept your session request'
-                    . ($booking->service?->title ? ' for ' . $booking->service->title : '') . '.',
+                    . ($booking->service?->title ? ' for ' . $booking->service->title : '')
+                    . '. Payment has been refunded.',
                 'booking',
                 ['booking_id' => $booking->id, 'status' => 'rejected']
             );

@@ -54,6 +54,7 @@ const TABS: { id: BookingStatus | "all"; label: string }[] = [
   { id: "Upcoming",  label: "Upcoming" },
   { id: "Pending",   label: "Pending" },
   { id: "Completed", label: "Completed" },
+  { id: "Cancelled", label: "Cancelled" },
 ];
 
 function formatDate(dateStr: string) {
@@ -271,19 +272,29 @@ export function MyBookings() {
 };
 
 
-  const handleReviewSubmit = (rating: number, comment: string) => {
+  const handleReviewSubmit = async (rating: number, comment: string) => {
     if (!reviewTarget) return;
-    setBookings((prev) =>
-      prev.map((b) => b.id === reviewTarget.id ? { ...b, reviewed: true } : b)
-    );
-    setReviewTarget(null);
+    try {
+      await apiFetch(`/api/bookings/${reviewTarget.id}/review`, {
+        method: "POST",
+        body: JSON.stringify({ rating, comment }),
+      });
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === reviewTarget.id ? { ...b, reviewed: true } : b,
+        ),
+      );
+      setReviewTarget(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const stats = [
     { label: "Total Booked", value: bookings.length },
     { label: "Upcoming", value: bookings.filter((b) => b.status === "Upcoming").length },
     { label: "Completed", value: bookings.filter((b) => b.status === "Completed").length },
-    { label: "Total Spent", value: `₹${bookings.filter((b) => b.status === "Completed").reduce((s, b) => s + b.amount, 0).toLocaleString()}` },
+    { label: "Total Spent", value: `₹${bookings.filter((b) => ["Completed", "Upcoming", "Pending"].includes(b.status)).reduce((s, b) => s + b.amount, 0).toLocaleString()}` },
   ];
 
   useEffect(() => {
@@ -295,23 +306,22 @@ export function MyBookings() {
         data.bookings.map((b) => ({
           id: String(b.id),
           mentorName: b.mentorName,
-          mentorInitials: b.mentorName
-            ?.split(" ")
+          mentorInitials: b.mentorInitials || (b.mentorName || "M")
+            .split(" ")
             .map((x: string) => x[0])
             .join("")
             .substring(0, 2)
             .toUpperCase(),
-
           service: b.service,
-          sessionType: b.sessionType,
+          sessionType: (b.sessionType || "Video Call") as SessionType,
           date: b.date,
           time: b.time,
-          duration: b.duration ?? 60,
+          duration: Number(b.duration ?? 60),
           amount: Number(b.amount),
-          status: b.status,
+          status: b.status as BookingStatus,
           requirements: b.requirements,
           meetLink: b.meetLink,
-          reviewed: b.reviewed ?? false,
+          reviewed: Boolean(b.reviewed),
         }))
       );
     } catch (error) {

@@ -12,8 +12,8 @@ class MentorServiceResource extends JsonResource
         return [
             'id' => (string) $this->id,
             'title' => $this->title,
-            'description' => $this->description,
-            'duration' => (string) $this->duration . ' min',
+            'description' => $this->description ?? '',
+            'duration' => (int) $this->duration,
             'price' => (int) $this->price,
             'type' => $this->session_type,
             'status' => $this->status,

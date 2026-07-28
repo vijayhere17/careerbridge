@@ -18,23 +18,33 @@ class MentorResource extends JsonResource
             'company' => $this->company,
 'companySlug' => str($this->company)->slug()->toString(),
 'industry' => $this->industry,
-'experience' => (int) $this->experience,
+            'experience' => (int) $this->experience,
+            'experienceLabel' => $this->experience
+                ? ((int) $this->experience) . '+ yrs'
+                : '—',
             'location' => $this->location,
-            'languages' => $this->languages->pluck('language')->toArray(),
+            'languages' => $this->languages->pluck('language')->values()->toArray(),
             'bio' => $this->bio,
-            'skills' => $this->skills->pluck('skill')->toArray(),
+            'skills' => $this->skills->pluck('skill')->values()->toArray(),
             'rating' => (float) $this->rating,
             'reviews' => (int) $this->review_count,
             'sessions' => (int) $this->session_count,
-            'pricePerSession' => (int) $this->services->min('price') ?? 0,
+            'pricePerSession' => (int) ($this->services->min('price') ?? 0),
             'responseTime' => 'Within 1 day',
             'available' => (bool) $this->available,
             'verified' => (bool) $this->verified,
+            'profilePhoto' => $this->profile_photo
+                ? (str_starts_with($this->profile_photo, 'http')
+                    ? $this->profile_photo
+                    : asset('storage/' . ltrim($this->profile_photo, '/')))
+                : null,
             'services' => MentorServiceResource::collection($this->services),
             'journey' => [],
             'achievements' => [],
             'certifications' => [],
-            'testimonials' => MentorReviewResource::collection($this->reviews),
+            'testimonials' => MentorReviewResource::collection(
+                $this->reviews->where('status', 'submitted')->values()
+            ),
             'faqs' => [],
         ];
     }

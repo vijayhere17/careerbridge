@@ -19,6 +19,7 @@ import { MentorEarnings } from "@/components/mentor/Earnings";
 import { MentorWithdrawRequest } from "@/components/mentor/WithdrawRequest";
 import { MentorWallet } from "@/components/mentor/Wallet";
 import { MentorReviews } from "@/components/mentor/Reviews";
+import { SeekerNotifications } from "@/components/users/SeekerNotifications";
 import { MentorNotifications } from "@/components/mentor/Notifications";
 import { MentorProfileSettings } from "@/components/mentor/ProfileSettings";
 import { MentorSetupPage } from "@/components/mentor/MentorSetup";
@@ -113,7 +114,24 @@ function DashboardPage() {
     appliedJobs: 0,
     savedMentors: 0,
     walletBalance: 0,
+    completedSessions: 0,
+    unreadNotifications: 0,
+    profileCompletion: 0,
 });
+  const [checklist, setChecklist] = useState<{
+    step: string;
+    title: string;
+    desc: string;
+    done: boolean;
+    nav: string;
+  }[]>([]);
+  const [featuredMentors, setFeaturedMentors] = useState<{
+    id: string;
+    name: string;
+    role?: string;
+    rating?: number;
+    pricePerSession?: number;
+  }[]>([]);
   const [mentorSidebarStats, setMentorSidebarStats] = useState({
     sessions: 0,
     rating: 0,
@@ -191,14 +209,41 @@ const [s, d] = await Promise.all([
       appliedJobs: number;
       savedMentors: number;
       walletBalance: number;
+      completedSessions?: number;
+      unreadNotifications?: number;
+      profileCompletion?: number;
     };
     upcomingSessions: MentorSession[];
+    checklist?: {
+      step: string;
+      title: string;
+      desc: string;
+      done: boolean;
+      nav: string;
+    }[];
+    featuredMentors?: {
+      id: string;
+      name: string;
+      role?: string;
+      rating?: number;
+      pricePerSession?: number;
+    }[];
   }>("/api/dashboard"),
 ]);
 
 setSessions(s.sessions);
-setDashboardStats(d.stats);
+setDashboardStats({
+  bookings: d.stats.bookings,
+  appliedJobs: d.stats.appliedJobs,
+  savedMentors: d.stats.savedMentors,
+  walletBalance: d.stats.walletBalance,
+  completedSessions: d.stats.completedSessions ?? 0,
+  unreadNotifications: d.stats.unreadNotifications ?? 0,
+  profileCompletion: d.stats.profileCompletion ?? 0,
+});
 setUpcomingSessions(d.upcomingSessions);
+setChecklist(d.checklist ?? []);
+setFeaturedMentors(d.featuredMentors ?? []);
 setActive(menu[a.user.role][0].label);
       } catch {
         clearAuth();
@@ -254,6 +299,8 @@ const renderContent = () => {
     sessions={sessions}
     upcomingSessions={upcomingSessions}
     dashboardStats={dashboardStats}
+    checklist={checklist}
+    featuredMentors={featuredMentors}
     onNavigate={navigate}
 />
 );
@@ -265,6 +312,7 @@ const renderContent = () => {
         if (active === "Applied Internships") return <AppliedInternships />;
         if (active === "Wallet") return <WalletPage />;
         if (active === "Reviews") return <ReviewsPage />;
+        if (active === "Notifications") return <SeekerNotifications />;
         if (active === "Profile Settings") return <ProfileSettings />;
     }
 
@@ -481,6 +529,8 @@ function CandidateDashboard({
   sessions,
   upcomingSessions,
   dashboardStats,
+  checklist: checklistProp,
+  featuredMentors,
   onNavigate,
 }: {
   sessions: MentorSession[];
@@ -490,7 +540,24 @@ function CandidateDashboard({
     appliedJobs: number;
     savedMentors: number;
     walletBalance: number;
+    completedSessions?: number;
+    unreadNotifications?: number;
+    profileCompletion?: number;
   };
+  checklist: {
+    step: string;
+    title: string;
+    desc: string;
+    done: boolean;
+    nav: string;
+  }[];
+  featuredMentors: {
+    id: string;
+    name: string;
+    role?: string;
+    rating?: number;
+    pricePerSession?: number;
+  }[];
   onNavigate: (label: string) => void;
 }) {
   const upcoming = upcomingSessions.slice(0, 3);
@@ -525,11 +592,11 @@ function CandidateDashboard({
     { label: "My Wallet",      desc: "Balance & transactions",   icon: Wallet,          nav: "Wallet" },
   ];
 
-  const checklist = [
-    { step: "1", title: "Complete your profile",   desc: "Add skills and goals",          done: false, nav: "Profile Settings" },
-    { step: "2", title: "Find a mentor",           desc: "Connect with industry experts", done: false, nav: "Find Mentors" },
-    { step: "3", title: "Browse opportunities",    desc: "Explore jobs & internships",    done: false, nav: "Opportunities Hub" },
-    { step: "4", title: "Book your first session", desc: "Start your mentorship journey", done: sessions.length > 0, nav: "My Bookings" },
+  const checklist = checklistProp.length > 0 ? checklistProp : [
+    { step: "1", title: "Complete your profile",   desc: "Add skills and goals",          done: (dashboardStats.profileCompletion ?? 0) >= 70, nav: "Profile Settings" },
+    { step: "2", title: "Find a mentor",           desc: "Connect with industry experts", done: dashboardStats.savedMentors > 0 || dashboardStats.bookings > 0, nav: "Find Mentors" },
+    { step: "3", title: "Browse opportunities",    desc: "Explore jobs & internships",    done: dashboardStats.appliedJobs > 0, nav: "Opportunities Hub" },
+    { step: "4", title: "Book your first session", desc: "Start your mentorship journey", done: dashboardStats.bookings > 0 || sessions.length > 0, nav: "My Bookings" },
   ];
 
   return (
@@ -626,6 +693,33 @@ function CandidateDashboard({
           </div>
         </div>
       </div>
+
+      {featuredMentors.length > 0 && (
+        <div className="rounded-2xl border border-border bg-surface p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Featured Mentors</p>
+            <button onClick={() => onNavigate("Find Mentors")} className="text-xs font-medium text-primary hover:underline">
+              Browse all
+            </button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredMentors.slice(0, 6).map((mentor) => (
+              <button
+                key={mentor.id}
+                onClick={() => onNavigate("Find Mentors")}
+                className="rounded-xl border border-border p-3 text-left hover:border-primary/40 transition-all"
+              >
+                <p className="text-sm font-semibold truncate">{mentor.name}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{mentor.role || "Mentor"}</p>
+                <p className="mt-1 text-xs font-semibold text-primary">
+                  ★ {(mentor.rating ?? 0).toFixed(1)}
+                  {mentor.pricePerSession ? ` · from ₹${mentor.pricePerSession}` : ""}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-border bg-surface p-4">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Explore</p>
