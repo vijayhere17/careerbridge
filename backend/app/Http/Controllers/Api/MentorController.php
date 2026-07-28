@@ -382,8 +382,7 @@ class MentorController extends Controller
             return response()->json(['message' => 'Mentor not found.'], 404);
         }
 
-        $days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        // Stored day_of_week: 0=Monday ... 6=Sunday (mentor availability controller)
+        // Stored day_of_week: 0=Monday ... 6=Sunday (matches MentorAvailabilityController)
         $map = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
         $rows = MentorAvailability::where('mentor_id', $mentor->id)
@@ -402,20 +401,29 @@ class MentorController extends Controller
                         return (string) $row->start_time;
                     }
                 })
+                ->filter()
                 ->unique()
                 ->values()
                 ->all();
 
             $schedule[$day] = [
                 'enabled' => count($slots) > 0,
-                'slots' => $slots,
+                'slots' => array_values($slots),
             ];
         }
 
+        $availableDays = collect($schedule)
+            ->filter(fn ($day) => ($day['enabled'] ?? false) && ! empty($day['slots']))
+            ->keys()
+            ->values()
+            ->all();
+
         return response()->json([
             'schedule' => $schedule,
+            'configured' => $rows->isNotEmpty(),
+            'available_days' => $availableDays,
             'timezone' => 'Asia/Kolkata',
-            'days' => $days,
+            'days' => $map,
         ]);
     }
 

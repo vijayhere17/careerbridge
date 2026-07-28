@@ -399,6 +399,40 @@ function MentorProfile({
   );
 }
 
+const DEFAULT_BOOKING_SLOTS = [
+  "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
+  "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM",
+];
+
+const WEEKDAY_NAMES = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+] as const;
+
+function weekdayFromDateInput(date: string): string {
+  // date input value is always YYYY-MM-DD — parse as local noon to avoid timezone shifts
+  const [year, month, day] = date.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const parsed = new Date(year, month - 1, day, 12, 0, 0);
+  return WEEKDAY_NAMES[parsed.getDay()] ?? "";
+}
+
+function normalizeSlotLabel(slot: string): string {
+  const match = String(slot).trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return String(slot).trim();
+
+  let hour = Number(match[1]);
+  const minute = match[2];
+  let period = (match[3] || "").toUpperCase();
+
+  // 24h times from DB (e.g. 14:00:00)
+  if (!period) {
+    period = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12 || 12;
+  }
+
+  return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
+}
+
 function BookingModal({
   mentor, service, onClose, onConfirm,
 }: {
@@ -411,27 +445,58 @@ function BookingModal({
   const [requirements, setRequirements] = useState("");
   const [selectedService, setSelectedService] = useState(service);
   const [schedule, setSchedule] = useState<Record<string, { enabled: boolean; slots: string[] }>>({});
+  const [scheduleConfigured, setScheduleConfigured] = useState(false);
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(true);
   const [error, setError] = useState("");
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadMeta() {
+      setLoadingSlots(true);
       try {
         const [avail, wallet] = await Promise.all([
-          apiFetch<{ schedule: Record<string, { enabled: boolean; slots: string[] }> }>(
-            `/api/mentors/${mentor.id}/availability`,
-          ),
+          apiFetch<{
+            schedule: Record<string, { enabled: boolean; slots: string[] }>;
+            configured?: boolean;
+            available_days?: string[];
+          }>(`/api/mentors/${mentor.id}/availability`),
           apiFetch<{ balance: number }>("/api/wallet"),
         ]);
-        setSchedule(avail.schedule ?? {});
+
+        const nextSchedule: Record<string, { enabled: boolean; slots: string[] }> = {};
+        Object.entries(avail.schedule ?? {}).forEach(([day, value]) => {
+          const slots = (value?.slots ?? []).map(normalizeSlotLabel);
+          nextSchedule[day] = {
+            enabled: Boolean(value?.enabled && slots.length > 0),
+            slots,
+          };
+        });
+
+        const configured = Boolean(
+          avail.configured ??
+          Object.values(nextSchedule).some((day) => day.enabled && day.slots.length > 0),
+        );
+
+        setSchedule(nextSchedule);
+        setScheduleConfigured(configured);
+        setAvailableDays(
+          avail.available_days?.length
+            ? avail.available_days
+            : Object.entries(nextSchedule)
+                .filter(([, day]) => day.enabled && day.slots.length > 0)
+                .map(([day]) => day),
+        );
         setWalletBalance(wallet.balance ?? 0);
       } catch (err) {
         console.error(err);
-        setAvailableTimes([
-          "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-          "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM",
-        ]);
+        // If availability cannot be loaded, allow default business hours so booking is not blocked
+        setSchedule({});
+        setScheduleConfigured(false);
+        setAvailableDays([]);
+      } finally {
+        setLoadingSlots(false);
       }
     }
     void loadMeta();
@@ -443,23 +508,48 @@ function BookingModal({
       setTime("");
       return;
     }
-    const dayName = new Date(`${date}T12:00:00`).toLocaleDateString("en-US", { weekday: "long" });
+
+    const dayName = weekdayFromDateInput(date);
     const day = schedule[dayName];
+
+    let nextSlots: string[] = [];
+
     if (day?.enabled && day.slots.length > 0) {
-      setAvailableTimes(day.slots);
-    } else if (Object.keys(schedule).length === 0) {
-      setAvailableTimes([
-        "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM",
-        "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM", "06:00 PM", "07:00 PM",
-      ]);
+      nextSlots = day.slots;
+    } else if (!scheduleConfigured) {
+      // Mentor has not published a schedule yet — offer default hours
+      nextSlots = DEFAULT_BOOKING_SLOTS;
     } else {
-      setAvailableTimes([]);
+      nextSlots = [];
     }
+
+    // Hide past times when booking for today
+    const today = new Date();
+    const [year, month, dayNum] = date.split("-").map(Number);
+    const isToday =
+      today.getFullYear() === year &&
+      today.getMonth() + 1 === month &&
+      today.getDate() === dayNum;
+
+    if (isToday) {
+      const nowMinutes = today.getHours() * 60 + today.getMinutes();
+      nextSlots = nextSlots.filter((slot) => {
+        const match = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+        if (!match) return true;
+        let hour = Number(match[1]) % 12;
+        if (match[3].toUpperCase() === "PM") hour += 12;
+        const minutes = hour * 60 + Number(match[2]);
+        return minutes > nowMinutes + 30;
+      });
+    }
+
+    setAvailableTimes(nextSlots);
     setTime("");
-  }, [date, schedule]);
+  }, [date, schedule, scheduleConfigured]);
 
   const platformFee = Math.round(selectedService.price * 0.05);
   const total = selectedService.price + platformFee;
+  const selectedWeekday = date ? weekdayFromDateInput(date) : "";
 
   const goToSummary = () => {
     if (!date || !time) {
@@ -541,12 +631,30 @@ function BookingModal({
                   onChange={(e) => setDate(e.target.value)}
                   className="dash-input w-full"
                 />
+                {scheduleConfigured && availableDays.length > 0 && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Usually available: {availableDays.map((d) => d.slice(0, 3)).join(", ")}
+                  </p>
+                )}
               </div>
 
               <div>
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Available time</p>
-                {date && availableTimes.length === 0 ? (
-                  <p className="text-xs text-amber-600">No slots available on this day. Try another date.</p>
+                {loadingSlots ? (
+                  <p className="text-xs text-muted-foreground">Loading available slots…</p>
+                ) : !date ? (
+                  <p className="text-xs text-muted-foreground">Select a date to see available times.</p>
+                ) : availableTimes.length === 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-700">
+                    <p className="font-semibold">
+                      No slots available{selectedWeekday ? ` on ${selectedWeekday}` : ""}.
+                    </p>
+                    <p className="mt-1">
+                      {scheduleConfigured && availableDays.length > 0
+                        ? `Try ${availableDays.join(", ")}.`
+                        : "Try another date."}
+                    </p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
                     {availableTimes.map((t) => (
@@ -561,6 +669,11 @@ function BookingModal({
                       </button>
                     ))}
                   </div>
+                )}
+                {!scheduleConfigured && date && availableTimes.length > 0 && (
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Mentor has not set a custom schedule — showing standard hours.
+                  </p>
                 )}
               </div>
 
@@ -579,7 +692,8 @@ function BookingModal({
 
               <button
                 onClick={goToSummary}
-                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                disabled={!date || !time}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Continue
               </button>
