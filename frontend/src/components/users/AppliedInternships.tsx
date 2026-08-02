@@ -1,29 +1,25 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/auth";
 import {
   GraduationCap, MapPin, Clock, Search, X,
-  CheckCircle2, XCircle, AlertCircle, Eye,
-  ChevronRight, Calendar, DollarSign,
+  CheckCircle2, XCircle, Eye,
+  ChevronRight, Calendar, DollarSign, UserRound, Briefcase,
 } from "lucide-react";
-
-type AppStatus =
-  | "Applied"
-  | "Under Review"
-  | "Shortlisted"
-  | "Interview Scheduled"
-  | "Offer Received"
-  | "Selected"
-  | "Rejected";
+import {
+  loadSeekerApplications,
+  type SeekerAppStatus as AppStatus,
+} from "@/lib/seeker-applications";
 
 interface AppliedInternship {
   id: string;
   company: string;
   initials: string;
+  recruiter: string;
   role: string;
   location: string;
   stipend: string;
   workType: "Remote" | "Hybrid" | "Onsite";
   duration: string;
+  jobType: string;
   appliedDate: string;
   lastUpdate: string;
   status: AppStatus;
@@ -32,107 +28,6 @@ interface AppliedInternship {
   ppoChance?: boolean;
   rejectionReason?: string;
 }
-
-const MOCK_INTERNSHIPS: AppliedInternship[] = [
-  {
-    id: "i1",
-    company: "Groww",
-    initials: "GW",
-    role: "Product Intern – Growth",
-    location: "Bengaluru",
-    stipend: "₹25–40k/month",
-    workType: "Hybrid",
-    duration: "6 months",
-    appliedDate: "2025-07-10",
-    lastUpdate: "2025-07-13",
-    status: "Interview Scheduled",
-    interviewDate: "2025-07-24 at 2:00 PM",
-    ppoChance: true,
-  },
-  {
-    id: "i2",
-    company: "Razorpay",
-    initials: "RP",
-    role: "Frontend Engineering Intern",
-    location: "Bengaluru",
-    stipend: "₹30–50k/month",
-    workType: "Hybrid",
-    duration: "3 months",
-    appliedDate: "2025-07-08",
-    lastUpdate: "2025-07-11",
-    status: "Shortlisted",
-    ppoChance: true,
-  },
-  {
-    id: "i3",
-    company: "CRED",
-    initials: "CR",
-    role: "Data Science Intern",
-    location: "Bengaluru",
-    stipend: "₹20–35k/month",
-    workType: "Onsite",
-    duration: "6 months",
-    appliedDate: "2025-07-01",
-    lastUpdate: "2025-07-14",
-    status: "Offer Received",
-    offerStipend: "₹35k/month",
-    ppoChance: true,
-  },
-  {
-    id: "i4",
-    company: "Zepto",
-    initials: "ZP",
-    role: "Operations Intern",
-    location: "Mumbai",
-    stipend: "₹15–20k/month",
-    workType: "Onsite",
-    duration: "3 months",
-    appliedDate: "2025-06-25",
-    lastUpdate: "2025-06-27",
-    status: "Under Review",
-  },
-  {
-    id: "i5",
-    company: "DesignCo Studio",
-    initials: "DC",
-    role: "UI/UX Design Intern",
-    location: "Remote",
-    stipend: "₹10–15k/month",
-    workType: "Remote",
-    duration: "2 months",
-    appliedDate: "2025-06-18",
-    lastUpdate: "2025-06-22",
-    status: "Rejected",
-    rejectionReason: "Looking for candidates with more Figma experience.",
-  },
-  {
-    id: "i6",
-    company: "Ather Energy",
-    initials: "AE",
-    role: "Embedded Systems Intern",
-    location: "Bengaluru",
-    stipend: "₹20–30k/month",
-    workType: "Onsite",
-    duration: "6 months",
-    appliedDate: "2025-06-10",
-    lastUpdate: "2025-06-11",
-    status: "Applied",
-  },
-  {
-    id: "i7",
-    company: "TalentBridge HR",
-    initials: "TB",
-    role: "HR & Recruitment Intern",
-    location: "Remote",
-    stipend: "₹8–12k/month",
-    workType: "Remote",
-    duration: "3 months",
-    appliedDate: "2025-06-05",
-    lastUpdate: "2025-07-01",
-    status: "Selected",
-    ppoChance: true,
-  },
-];
 
 const STATUS_PIPELINE: AppStatus[] = [
   "Applied",
@@ -166,7 +61,7 @@ function formatDate(d: string) {
 }
 
 function StatusBadge({ status }: { status: AppStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.Applied;
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${cfg.bg} ${cfg.color}`}>
@@ -244,7 +139,9 @@ function DetailDrawer({ intern, onClose }: { intern: AppliedInternship; onClose:
           <div className="grid grid-cols-2 gap-2">
             {[
               { label: "Applied On",   value: formatDate(intern.appliedDate) },
+              { label: "Employment Type", value: intern.jobType },
               { label: "Duration",     value: intern.duration },
+              { label: "Recruiter",    value: intern.recruiter },
               { label: "Work Mode",    value: intern.workType },
               { label: "Last Updated", value: formatDate(intern.lastUpdate) },
             ].map(({ label, value }) => (
@@ -326,6 +223,12 @@ function InternshipCard({ intern, onView }: { intern: AppliedInternship; onView:
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Clock className="h-3 w-3" />{intern.duration}
             </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Briefcase className="h-3 w-3" />{intern.jobType}
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <UserRound className="h-3 w-3" />{intern.recruiter}
+            </span>
             <span className="text-[11px] font-semibold text-primary">{intern.stipend}</span>
           </div>
 
@@ -368,7 +271,7 @@ function InternshipCard({ intern, onView }: { intern: AppliedInternship; onView:
               onClick={onView}
               className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              Details <ChevronRight className="h-3.5 w-3.5" />
+              View Details <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -379,7 +282,8 @@ function InternshipCard({ intern, onView }: { intern: AppliedInternship; onView:
 
 export function AppliedInternships() {
   const [internships, setInternships] = useState<AppliedInternship[]>([]);
-const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<AppStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AppliedInternship | null>(null);
@@ -411,77 +315,57 @@ const [loading, setLoading] = useState(true);
 
   useEffect(() => {
   const loadInternships = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const data = await apiFetch<{ applications: any[] }>(
-        "/api/opportunities/applications"
-      );
-
+      const apps = await loadSeekerApplications("internship");
       setInternships(
-        data.applications
-          .filter(
-            (app) =>
-              app.jobType === "Internship" ||
-              app.jobType === "Intern"
-          )
-          .map((app) => ({
-            id: app.id,
-
-            company: app.company,
-
-            initials:
-              app.companyLogo ||
-              app.company
-                ?.split(" ")
-                .map((x: string) => x[0])
-                .join("")
-                .substring(0, 2)
-                .toUpperCase(),
-
-            role: app.title,
-
-            location: app.location,
-
-            stipend: app.salary,
-
-            duration: "3 Months",
-
-            workType: app.workType,
-
-            appliedDate: app.appliedAt,
-
-            lastUpdate: app.lastUpdate,
-
-            status: app.status,
-
-            interviewDate: app.interviewDate,
-
-            offerStipend: app.offerAmount,
-
-            rejectionReason: app.rejectionReason,
-
-            ppoChance: true,
-          }))
+        apps.map((app) => ({
+          id: app.id,
+          company: app.company,
+          initials: app.initials,
+          recruiter: app.recruiter,
+          role: app.role,
+          location: app.location,
+          stipend: app.salary,
+          duration: app.duration,
+          jobType: app.jobType,
+          workType: app.workType,
+          appliedDate: app.appliedDate,
+          lastUpdate: app.lastUpdate,
+          status: app.status,
+          interviewDate: app.interviewDate,
+          offerStipend: app.offerAmount,
+          rejectionReason: app.rejectionReason,
+          ppoChance: app.ppoChance,
+        })),
       );
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
+      setError("Could not load applied internships.");
     } finally {
       setLoading(false);
     }
   };
 
-  loadInternships();
+  void loadInternships();
 }, []);
 
 if (loading) {
   return (
-    <div className="flex justify-center py-20">
-      Loading internships...
+    <div className="space-y-3 py-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-muted/40" />
+      ))}
     </div>
   );
 }
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-border bg-surface p-4">

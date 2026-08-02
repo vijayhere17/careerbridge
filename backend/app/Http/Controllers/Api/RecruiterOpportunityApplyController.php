@@ -162,21 +162,73 @@ class RecruiterOpportunityApplyController extends Controller
             return response()->json(['success' => false, 'message' => 'Only job seekers can view applications.'], 403);
         }
 
-        $items = RecruiterApplication::with(['opportunity'])
+        $items = RecruiterApplication::with(['opportunity.user'])
             ->where('candidate_id', $user->id)
             ->latest('applied_at')
-            ->paginate(min((int) $request->query('per_page', 20), 50));
+            ->paginate(min((int) $request->query('per_page', 50), 100));
 
         $items->getCollection()->transform(function (RecruiterApplication $application) {
+            $opportunity = $application->opportunity;
+            $salaryMin = $opportunity?->salary_min;
+            $salaryMax = $opportunity?->salary_max;
+            $salary = null;
+            if ($salaryMin !== null || $salaryMax !== null) {
+                $min = $salaryMin !== null ? '₹' . number_format((float) $salaryMin, 0) : null;
+                $max = $salaryMax !== null ? '₹' . number_format((float) $salaryMax, 0) : null;
+                $salary = $min && $max ? "{$min}–{$max}" : ($min ?: $max);
+            }
+
+            $workMode = $opportunity?->work_mode;
+            $workType = match (strtolower((string) $workMode)) {
+                'remote' => 'Remote',
+                'hybrid' => 'Hybrid',
+                'onsite', 'on-site', 'on_site' => 'Onsite',
+                default => $workMode ?: 'Onsite',
+            };
+
+            $employmentType = match (strtolower((string) ($opportunity?->employment_type ?? ''))) {
+                'full-time', 'full_time', 'fulltime' => 'Full Time',
+                'part-time', 'part_time', 'parttime' => 'Part Time',
+                'internship', 'intern' => 'Internship',
+                'contract' => 'Contract',
+                'freelance' => 'Freelance',
+                default => $opportunity?->employment_type ?: (
+                    $opportunity?->opportunity_type === 'internship' ? 'Internship' : 'Full Time'
+                ),
+            };
+
+            $interviewDate = null;
+            if ($application->interview_at) {
+                $interviewDate = $application->interview_at->format('Y-m-d \a\t g:i A');
+            }
+
             return [
-                'id' => $application->id,
-                'opportunityId' => $application->recruiter_opportunity_id,
-                'company' => $application->opportunity?->company_name,
-                'title' => $application->opportunity?->title,
+                'id' => (string) $application->id,
+                'opportunityId' => (string) $application->recruiter_opportunity_id,
+                'source' => 'recruiter',
+                'opportunityType' => $opportunity?->opportunity_type,
+                'category' => match ($opportunity?->opportunity_type) {
+                    'internship' => 'internships',
+                    'freelance' => 'freelance',
+                    default => 'jobs',
+                },
+                'company' => $opportunity?->company_name,
+                'recruiter' => $opportunity?->user?->name,
+                'title' => $opportunity?->title,
+                'location' => $opportunity?->location,
+                'salary' => $salary,
+                'workType' => $workType,
+                'jobType' => $employmentType,
+                'employmentType' => $employmentType,
+                'duration' => $opportunity?->experience_level,
                 'status' => $application->status,
-                'appliedAt' => $application->applied_at,
+                'appliedAt' => optional($application->applied_at)->toISOString(),
+                'lastUpdate' => optional($application->updated_at)->toISOString(),
                 'interview_status' => $application->interview_status,
                 'interview_at' => $application->interview_at,
+                'interviewDate' => $interviewDate,
+                'rejectionReason' => $application->reject_reason,
+                'offerAmount' => null,
             ];
         });
 

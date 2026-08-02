@@ -1,25 +1,20 @@
 import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/auth";
 import {
   Briefcase, MapPin, Clock, Search, X,
-  CheckCircle2, XCircle, AlertCircle, Eye,
-  ChevronRight, ExternalLink, FileText, Calendar,
-  Building2, DollarSign,
+  CheckCircle2, XCircle, Eye,
+  ChevronRight, FileText, Calendar,
+  DollarSign, UserRound,
 } from "lucide-react";
-
-type AppStatus =
-  | "Applied"
-  | "Under Review"
-  | "Shortlisted"
-  | "Interview Scheduled"
-  | "Offer Received"
-  | "Selected"
-  | "Rejected";
+import {
+  loadSeekerApplications,
+  type SeekerAppStatus as AppStatus,
+} from "@/lib/seeker-applications";
 
 interface AppliedJob {
   id: string;
   company: string;
   initials: string;
+  recruiter: string;
   role: string;
   location: string;
   salary: string;
@@ -32,103 +27,6 @@ interface AppliedJob {
   offerAmount?: string;
   rejectionReason?: string;
 }
-
-const MOCK_JOBS: AppliedJob[] = [
-  {
-    id: "j1",
-    company: "Razorpay",
-    initials: "RP",
-    role: "Senior Full-Stack Engineer",
-    location: "Bengaluru",
-    salary: "₹18–30 LPA",
-    workType: "Hybrid",
-    appliedDate: "2025-07-10",
-    lastUpdate: "2025-07-12",
-    status: "Interview Scheduled",
-    jobType: "Full Time",
-    interviewDate: "2025-07-22 at 11:00 AM",
-  },
-  {
-    id: "j2",
-    company: "Zepto",
-    initials: "ZP",
-    role: "Backend Engineer – Platform",
-    location: "Mumbai",
-    salary: "₹15–25 LPA",
-    workType: "Onsite",
-    appliedDate: "2025-07-08",
-    lastUpdate: "2025-07-10",
-    status: "Under Review",
-    jobType: "Full Time",
-  },
-  {
-    id: "j3",
-    company: "CRED",
-    initials: "CR",
-    role: "Data Scientist – Credit Risk",
-    location: "Bengaluru",
-    salary: "₹20–35 LPA",
-    workType: "Onsite",
-    appliedDate: "2025-07-05",
-    lastUpdate: "2025-07-15",
-    status: "Offer Received",
-    jobType: "Full Time",
-    offerAmount: "₹28 LPA",
-  },
-  {
-    id: "j4",
-    company: "Ather Energy",
-    initials: "AE",
-    role: "Embedded Systems Engineer",
-    location: "Bengaluru",
-    salary: "₹16–28 LPA",
-    workType: "Onsite",
-    appliedDate: "2025-06-28",
-    lastUpdate: "2025-07-02",
-    status: "Shortlisted",
-    jobType: "Full Time",
-  },
-  {
-    id: "j5",
-    company: "DesignCo Studio",
-    initials: "DC",
-    role: "Freelance UI/UX Designer",
-    location: "Remote",
-    salary: "₹1.5–3L project",
-    workType: "Remote",
-    appliedDate: "2025-06-20",
-    lastUpdate: "2025-06-25",
-    status: "Rejected",
-    jobType: "Freelance",
-    rejectionReason: "Position filled internally.",
-  },
-  {
-    id: "j6",
-    company: "Groww",
-    initials: "GW",
-    role: "Product Manager – Payments",
-    location: "Bengaluru",
-    salary: "₹22–38 LPA",
-    workType: "Hybrid",
-    appliedDate: "2025-06-15",
-    lastUpdate: "2025-06-16",
-    status: "Applied",
-    jobType: "Full Time",
-  },
-  {
-    id: "j7",
-    company: "TalentBridge HR",
-    initials: "TB",
-    role: "DevOps Engineer",
-    location: "Remote",
-    salary: "₹18–28 LPA",
-    workType: "Remote",
-    appliedDate: "2025-06-10",
-    lastUpdate: "2025-07-01",
-    status: "Selected",
-    jobType: "Full Time",
-  },
-];
 
 const STATUS_PIPELINE: AppStatus[] = [
   "Applied",
@@ -162,7 +60,7 @@ function formatDate(d: string) {
 }
 
 function StatusBadge({ status }: { status: AppStatus }) {
-  const cfg = STATUS_CONFIG[status];
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.Applied;
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold ${cfg.bg} ${cfg.color}`}>
@@ -194,8 +92,7 @@ function ProgressBar({ status }: { status: AppStatus }) {
 }
 
 function DetailDrawer({ job, onClose }: { job: AppliedJob; onClose: () => void }) {
-  const cfg = STATUS_CONFIG[job.status];
-  const StatusIcon = cfg.icon;
+  const cfg = STATUS_CONFIG[job.status] ?? STATUS_CONFIG.Applied;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/40 lg:items-stretch" onClick={onClose}>
@@ -241,9 +138,11 @@ function DetailDrawer({ job, onClose }: { job: AppliedJob; onClose: () => void }
           <div className="grid grid-cols-2 gap-2">
             {[
               { label: "Applied On",   value: formatDate(job.appliedDate) },
-              { label: "Job Type",     value: job.jobType },
+              { label: "Employment Type", value: job.jobType },
               { label: "Work Mode",    value: job.workType },
+              { label: "Recruiter",    value: job.recruiter },
               { label: "Last Updated", value: formatDate(job.lastUpdate) },
+              { label: "Location",     value: job.location },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-xl border border-border p-3">
                 <p className="text-[11px] text-muted-foreground">{label}</p>
@@ -321,7 +220,10 @@ function JobCard({ job, onView }: { job: AppliedJob; onView: () => void }) {
               <MapPin className="h-3 w-3" />{job.location}
             </span>
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Briefcase className="h-3 w-3" />{job.workType}
+              <Briefcase className="h-3 w-3" />{job.jobType} · {job.workType}
+            </span>
+            <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <UserRound className="h-3 w-3" />{job.recruiter}
             </span>
             <span className="text-[11px] font-semibold text-primary">{job.salary}</span>
           </div>
@@ -357,7 +259,7 @@ function JobCard({ job, onView }: { job: AppliedJob; onView: () => void }) {
               onClick={onView}
               className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              Details <ChevronRight className="h-3.5 w-3.5" />
+              View Details <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
@@ -367,8 +269,9 @@ function JobCard({ job, onView }: { job: AppliedJob; onView: () => void }) {
 }
 
 export function AppliedJobs() {
-const [jobs, setJobs] = useState<AppliedJob[]>([]);
-const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<AppliedJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<AppStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [selectedJob, setSelectedJob] = useState<AppliedJob | null>(null);
@@ -399,72 +302,56 @@ const [loading, setLoading] = useState(true);
   ];
 
   useEffect(() => {
-  const loadApplications = async () => {
-    try {
-      const data = await apiFetch<{ applications: any[] }>(
-        "/api/opportunities/applications"
-      );
+    const loadApplications = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const apps = await loadSeekerApplications("job");
+        setJobs(
+          apps.map((app) => ({
+            id: app.id,
+            company: app.company,
+            initials: app.initials,
+            recruiter: app.recruiter,
+            role: app.role,
+            location: app.location,
+            salary: app.salary,
+            workType: app.workType,
+            appliedDate: app.appliedDate,
+            lastUpdate: app.lastUpdate,
+            status: app.status,
+            jobType: app.jobType,
+            interviewDate: app.interviewDate,
+            offerAmount: app.offerAmount,
+            rejectionReason: app.rejectionReason,
+          })),
+        );
+      } catch (err) {
+        console.error(err);
+        setError("Could not load applied jobs.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setJobs(
-  data.applications
-    .filter((app) => app.jobType === "Full Time")
-    .map((app) => ({
-    id: app.id,
+    void loadApplications();
+  }, []);
 
-    company: app.company,
-
-    initials:
-      app.companyLogo ||
-      app.company
-        ?.split(" ")
-        .map((x: string) => x[0])
-        .join("")
-        .substring(0, 2)
-        .toUpperCase(),
-
-    role: app.title,
-
-    location: app.location,
-
-    salary: app.salary,
-
-    workType: app.workType,
-
-    appliedDate: app.appliedAt,
-
-    lastUpdate: app.lastUpdate,
-
-    status: app.status,
-
-    jobType: app.jobType,
-
-    interviewDate: app.interviewDate,
-
-    offerAmount: app.offerAmount,
-
-    rejectionReason: app.rejectionReason,
-  }))
-);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  loadApplications();
-}, []);
-
-if (loading) {
-  return (
-    <div className="flex justify-center py-20">
-      Loading applications...
-    </div>
-  );
-}
+  if (loading) {
+    return (
+      <div className="space-y-3 py-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-28 animate-pulse rounded-xl border border-border bg-muted/40" />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map(({ label, value }) => (
           <div key={label} className="rounded-xl border border-border bg-surface p-4">
