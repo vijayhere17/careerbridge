@@ -15,9 +15,22 @@ class JobApplicationResource extends JsonResource
 
             'opportunityId' => (string) $this->opportunity_id,
 
+            'source' => 'legacy',
+
+            'category' => $this->opportunity?->category,
+
+            'opportunityType' => match ($this->opportunity?->category) {
+                'internships', 'internship' => 'internship',
+                'freelance' => 'freelance',
+                default => 'job',
+            },
+
             'company' => $this->opportunity?->company,
 
             'companyLogo' => $this->opportunity?->company_logo,
+
+            'recruiter' => $this->opportunity?->provider_name
+                ?: $this->opportunity?->user?->name,
 
             'title' => $this->opportunity?->title,
 
@@ -30,6 +43,12 @@ class JobApplicationResource extends JsonResource
             'workType' => $this->opportunity?->work_type,
 
             'jobType' => $this->opportunity?->employment_type,
+
+            'employmentType' => $this->opportunity?->employment_type,
+
+            'duration' => $this->opportunity?->duration,
+
+            'ppoChance' => (bool) ($this->opportunity?->ppo_chance ?? false),
 
             'status' => $this->status,
 

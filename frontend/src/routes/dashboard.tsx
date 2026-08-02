@@ -98,13 +98,25 @@ const BOTTOM_NAV_ITEMS: { label: string; icon: LucideIcon }[] = [
   { label: "Profile Settings",  icon: Settings },
 ];
 
-export const Route = createFileRoute("/dashboard")({ component: DashboardPage });
+type DashboardSearch = {
+  page?: string;
+};
+
+export const Route = createFileRoute("/dashboard")({
+  component: DashboardPage,
+  validateSearch: (search: Record<string, unknown>): DashboardSearch => ({
+    page:
+      typeof search.page === "string" && search.page.trim().length > 0
+        ? search.page
+        : undefined,
+  }),
+});
 
 function DashboardPage() {
   const router = useRouter();
+  const search = Route.useSearch();
   const [user, setUser]         = useState<AuthUser | null>(null);
   const [sessions, setSessions] = useState<MentorSession[]>([]);
-  const [active, setActive]     = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading]   = useState(true);
   const [mentorOnboardingStatus, setMentorOnboardingStatus] = useState<string | null>(null);
@@ -197,7 +209,6 @@ if (a.user.role === "mentor") {
     rating: mentorDash.mentor?.rating ?? 0,
     wallet: mentorDash.stats?.wallet_balance ?? 0,
   });
-  setActive(menu.mentor[0].label);
   return;
 }
 
@@ -244,7 +255,6 @@ setDashboardStats({
 setUpcomingSessions(d.upcomingSessions);
 setChecklist(d.checklist ?? []);
 setFeaturedMentors(d.featuredMentors ?? []);
-setActive(menu[a.user.role][0].label);
       } catch {
         clearAuth();
         router.navigate({ to: "/login" });
@@ -256,6 +266,25 @@ setActive(menu[a.user.role][0].label);
   }, [router]);
 
   const items = useMemo(() => (user ? menu[user.role] : []), [user]);
+
+  // Keep the active panel in the URL so refresh + back/forward restore it.
+  const active = useMemo(() => {
+    if (!items.length) return "";
+    const fromUrl = items.find((item) => item.label === search.page);
+    return fromUrl?.label ?? items[0].label;
+  }, [items, search.page]);
+
+  useEffect(() => {
+    if (loading || !user || !items.length) return;
+    // Drop invalid ?page= values without wiping a valid restored page.
+    if (search.page && !items.some((item) => item.label === search.page)) {
+      void router.navigate({
+        to: "/dashboard",
+        search: { page: items[0].label },
+        replace: true,
+      });
+    }
+  }, [loading, user, items, search.page, router]);
 
   const logout = async () => {
     try { await apiFetch("/api/auth/logout", { method: "POST" }); } finally {
@@ -286,7 +315,10 @@ if (user.role === "mentor") {
 
 
   const navigate = (label: string) => {
-    setActive(label);
+    void router.navigate({
+      to: "/dashboard",
+      search: { page: label },
+    });
     setSidebarOpen(false);
   };
 

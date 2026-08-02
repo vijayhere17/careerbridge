@@ -79,7 +79,7 @@ class ApplicationController extends Controller
             ], 401);
         }
 
-        $applications = JobApplication::with('opportunity')
+        $applications = JobApplication::with(['opportunity.user'])
             ->where('user_id', $user->id)
             ->latest()
             ->get();

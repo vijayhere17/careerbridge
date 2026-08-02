@@ -9,6 +9,7 @@ use App\Models\JobApplication;
 use App\Models\MentorBooking;
 use App\Models\MentorProfile;
 use App\Models\Notification;
+use App\Models\RecruiterApplication;
 use App\Models\SavedMentor;
 use App\Models\User;
 use App\Models\Wallet;
@@ -81,10 +82,14 @@ class DashboardController extends Controller
 
         $profileCompletion = $this->profileCompletion($user);
 
+        $legacyApps = JobApplication::where('user_id', $user->id)->count();
+        $recruiterApps = RecruiterApplication::where('candidate_id', $user->id)->count();
+        $hasApplied = $legacyApps > 0 || $recruiterApps > 0;
+
         return response()->json([
             'stats' => [
                 'bookings' => MentorBooking::where('candidate_id', $user->id)->count(),
-                'appliedJobs' => JobApplication::where('user_id', $user->id)->count(),
+                'appliedJobs' => $legacyApps + $recruiterApps,
                 'savedMentors' => SavedMentor::where('candidate_id', $user->id)->count(),
                 'walletBalance' => (float) (optional(
                     Wallet::where('user_id', $user->id)->first()
@@ -119,7 +124,7 @@ class DashboardController extends Controller
                     'step' => '3',
                     'title' => 'Browse opportunities',
                     'desc' => 'Explore jobs & internships',
-                    'done' => JobApplication::where('user_id', $user->id)->exists(),
+                    'done' => $hasApplied,
                     'nav' => 'Opportunities Hub',
                 ],
                 [
