@@ -88,7 +88,7 @@ export function normalizeMentorFromApi(m: any): Mentor {
     languages: m.languages ?? [],
     skills: m.skills ?? [],
     bio: m.bio ?? "",
-    services: (m.services ?? []).map((s: any) => ({
+    services: (Array.isArray(m.services) ? m.services : []).map((s: any) => ({
       id: String(s.id),
       title: s.title,
       duration:
@@ -99,7 +99,12 @@ export function normalizeMentorFromApi(m: any): Mentor {
       type: (s.type || s.session_type || "Video Call") as SessionType,
       description: s.description ?? "",
     })),
-    testimonials: (m.testimonials ?? m.reviewsList ?? []).map((t: any) => ({
+    testimonials: (Array.isArray(m.testimonials)
+      ? m.testimonials
+      : Array.isArray(m.reviewsList)
+        ? m.reviewsList
+        : []
+    ).map((t: any) => ({
       id: String(t.id),
       candidateName: t.candidateName || t.candidate || "Candidate",
       rating: Number(t.rating ?? 0),
