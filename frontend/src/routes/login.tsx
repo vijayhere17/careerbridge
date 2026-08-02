@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import {
-  Compass,
   Lock,
   Mail,
   ArrowRight,
@@ -13,6 +12,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { apiFetch, setAuth, type AuthUser } from "@/lib/auth";
 import {
   onboardingRedirectPath,
@@ -85,12 +85,7 @@ function LoginPage() {
         {/* ── Left panel — branding ── */}
         <div className="hidden lg:flex flex-col justify-between bg-primary p-10 text-primary-foreground">
           <div>
-            <Link to="/" className="inline-flex items-center gap-2 font-display text-xl font-bold">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/20">
-                <Compass className="h-5 w-5" />
-              </span>
-              CareerBridge
-            </Link>
+            <BrandLogo size="md" wordmarkClassName="[&_span]:!text-white" />
             <p className="mt-2 text-sm text-primary-foreground/70">
               Talk to Real Employees. Get Career Ready.
             </p>
@@ -119,7 +114,7 @@ function LoginPage() {
           </div>
 
           <p className="text-xs text-primary-foreground/50">
-            © 2025 CareerBridge. All rights reserved.
+            © 2025 Oppverse. All rights reserved.
           </p>
         </div>
 
@@ -127,15 +122,7 @@ function LoginPage() {
         <div className="flex flex-col min-h-screen bg-background">
           {/* Mobile header */}
           <div className="flex items-center justify-between p-5 lg:hidden border-b border-border">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 font-display text-base font-bold"
-            >
-              <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-                <Compass className="h-4 w-4" />
-              </span>
-              Career<span className="text-primary">Bridge</span>
-            </Link>
+            <BrandLogo size="sm" />
             <Link to="/signup" className="text-sm font-semibold text-primary hover:underline">
               Sign up
             </Link>
@@ -218,7 +205,7 @@ function LoginPage() {
 
               <div className="mt-6 pt-5 border-t border-border">
                 <p className="text-center text-sm text-muted-foreground">
-                  New to CareerBridge?{" "}
+                  New to Oppverse?{" "}
                   <Link to="/signup" className="font-semibold text-primary hover:underline">
                     Create an account
                   </Link>
@@ -275,12 +262,7 @@ export function AuthCard({
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <div className="p-5 border-b border-border">
-        <Link to="/" className="inline-flex items-center gap-2 font-display text-base font-bold">
-          <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-            <Compass className="h-4 w-4" />
-          </span>
-          Career<span className="text-primary">Bridge</span>
-        </Link>
+        <BrandLogo size="sm" />
       </div>
       <div className="flex flex-1 items-center justify-center px-5 py-10">
         <div className="w-full max-w-sm">

@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Menu, X, Compass } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
+import { BrandLogo } from "./BrandLogo";
 import { getAuthToken, onAuthChange } from "@/lib/auth";
 
 const nav = [
@@ -29,14 +30,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between gap-3">
-        <Link to="/" className="flex shrink-0 items-center gap-2 font-display tracking-tight">
-          <span className="grid h-10 w-10 place-items-center rounded-xl gradient-primary text-primary-foreground shadow-card sm:h-12 sm:w-12">
-            <Compass className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.5} />
-          </span>
-          <span className="text-base font-semibold sm:text-xl md:text-2xl">
-            Career<span className="text-primary">Bridge</span>
-          </span>
-        </Link>
+        <BrandLogo size="md" />
 
         <nav className="hidden lg:flex items-center gap-1">
           {nav.map((n) => (

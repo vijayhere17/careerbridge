@@ -3,9 +3,10 @@ import { useEffect, useRef, useState } from "react";
 import {
   User, Mail, Phone, MapPin, Building2, Briefcase, GraduationCap,
   FileText, Plus, X, Camera, Linkedin, Github, Globe, Video,
-  ShieldCheck, ArrowRight, ArrowLeft, Compass, Sparkles,
+  ShieldCheck, ArrowRight, ArrowLeft, Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { apiFetch, getAuthToken, type AuthUser } from "@/lib/auth";
 
 
@@ -72,14 +73,7 @@ const emptyForm: FormState = {
    ──────────────────────────────────────────────────────────── */
 
 function BrandHeader() {
-  return (
-    <div className="flex items-center gap-2 font-display font-bold text-base">
-      <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-        <Compass className="h-4 w-4" />
-      </span>
-      <span className="font-display">Career <span className="text-primary">Bridge</span></span>
-    </div>
-  );
+  return <BrandLogo size="sm" asLink={false} />;
 }
 
 function StepProgress({ current }: { current: number }) {

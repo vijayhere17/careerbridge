@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -6,7 +6,6 @@ import {
   Building2,
   CheckCircle2,
   Clock3,
-  Compass,
   LogOut,
   Mail,
   Phone,
@@ -16,6 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,16 +128,7 @@ function fromProfile(profile?: RecruiterCompanyProfile | null, fallback?: Profil
 }
 
 function BrandHeader() {
-  return (
-    <Link to="/" className="inline-flex items-center gap-2 font-display font-bold text-base">
-      <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-        <Compass className="h-4 w-4" />
-      </span>
-      <span>
-        Career <span className="text-primary">Bridge</span>
-      </span>
-    </Link>
-  );
+  return <BrandLogo size="sm" />;
 }
 
 function StepBar({ current }: { current: number }) {

@@ -11,12 +11,12 @@ import {
   Settings,
   Menu,
   X,
-  Compass,
   LogOut,
   ChevronDown,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { clearAuth, getStoredUser, onAuthChange } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -47,14 +47,9 @@ function SidebarInner({ onNavigate, userName }: { onNavigate?: () => void; userN
 
   return (
     <div className="flex h-full flex-col">
-      <Link to="/" className="flex shrink-0 items-center gap-2 px-5 h-16 border-b border-border">
-        <span className="grid h-9 w-9 place-items-center rounded-xl gradient-primary text-primary-foreground shadow-card">
-          <Compass className="h-5 w-5" strokeWidth={2.5} />
-        </span>
-        <span className="font-display text-lg font-bold tracking-tight">
-          Career<span className="text-primary">Bridge</span>
-        </span>
-      </Link>
+      <div className="flex shrink-0 items-center px-5 h-16 border-b border-border">
+        <BrandLogo size="md" />
+      </div>
 
       <div className="mx-4 mt-4 rounded-xl border border-border bg-muted/40 p-3">
         <p className="text-sm font-semibold">{userName ?? "Admin"}</p>
