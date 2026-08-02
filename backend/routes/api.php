@@ -443,11 +443,8 @@ Route::prefix('mentor')->group(function () {
     Route::post('bookings/{booking}/respond',           [MentorController::class, 'respondBooking']);
     Route::post('bookings/{booking}/complete',          [MentorController::class, 'completeSession']);
 
-    // Services CRUD
-    Route::get('services',                              [MentorController::class, 'mentorServices']);
-    Route::post('services',                             [MentorController::class, 'storeMentorService']);
-    Route::put('services/{service}',                    [MentorController::class, 'updateMentorService']);
-    Route::delete('services/{service}',                 [MentorController::class, 'destroyMentorService']);
+    // Services CRUD is registered above via MentorServiceController (canonical).
+    // Do not re-register here — duplicate routes caused session_type validation mismatches.
 
     // Availability (canonical: mentor_availabilities table)
     Route::get('availability',                          [MentorAvailabilityController::class, 'show']);

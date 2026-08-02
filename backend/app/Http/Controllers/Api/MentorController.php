@@ -605,6 +605,18 @@ class MentorController extends Controller
         $user   = $this->auth($request);
         $mentor = MentorProfile::where('user_id', $user?->id)->firstOrFail();
 
+        // Accept both UI field (`type`) and API field (`session_type`)
+        if (! $request->filled('session_type') && $request->filled('type')) {
+            $request->merge(['session_type' => $request->input('type')]);
+        }
+        if (! $request->filled('status') && $request->has('active')) {
+            $request->merge([
+                'status' => filter_var($request->input('active'), FILTER_VALIDATE_BOOLEAN)
+                    ? 'active'
+                    : 'inactive',
+            ]);
+        }
+
         $data = $request->validate([
             'title'        => 'required|string|max:255',
             'description'  => 'nullable|string',
@@ -615,11 +627,17 @@ class MentorController extends Controller
         ]);
 
         $service = $mentor->services()->create([
-            ...$data,
+            'title' => $data['title'],
+            'description' => $data['description'] ?? null,
+            'price' => $data['price'],
+            'duration' => $data['duration'],
+            'session_type' => $data['session_type'],
             'status' => $data['status'] ?? 'active',
         ]);
 
         return response()->json([
+            'success' => true,
+            'message' => 'Service created successfully.',
             'service' => new MentorServiceResource($service),
         ], 201);
     }
@@ -631,6 +649,17 @@ class MentorController extends Controller
 
         if ($service->mentor_id !== $mentor->id) {
             return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if (! $request->filled('session_type') && $request->filled('type')) {
+            $request->merge(['session_type' => $request->input('type')]);
+        }
+        if (! $request->filled('status') && $request->has('active')) {
+            $request->merge([
+                'status' => filter_var($request->input('active'), FILTER_VALIDATE_BOOLEAN)
+                    ? 'active'
+                    : 'inactive',
+            ]);
         }
 
         $data = $request->validate([
