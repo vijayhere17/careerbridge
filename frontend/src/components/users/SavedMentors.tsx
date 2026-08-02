@@ -1,56 +1,31 @@
 import { useEffect, useState } from "react";
-import {
-  BookmarkCheck, MapPin, Star, Search, Trash2,
-  BadgeCheck, Users,
-} from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { apiFetch } from "@/lib/auth";
-
-interface Mentor {
-  id: string;
-  name: string;
-  initials: string;
-  role: string;
-  company: string;
-  industry: string;
-  location: string;
-  rating: number;
-  reviewCount: number;
-  sessionCount: number;
-  verified: boolean;
-  available: boolean;
-  skills: string[];
-  minPrice: number;
-}
+import {
+  BookingModal,
+  MentorCard,
+  MentorProfile,
+  normalizeMentorFromApi,
+  type Mentor,
+  type Service,
+} from "@/components/users/FindMentors";
 
 export function SavedMentors({ onFindMentors }: { onFindMentors?: () => void }) {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [selectedMentor, setSelectedMentor] = useState<Mentor | null>(null);
+  const [bookingService, setBookingService] = useState<Service | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError("");
     try {
       const data = await apiFetch<{ mentors: any[] }>("/api/mentors/saved");
-      setMentors(
-        (data.mentors ?? []).map((m) => ({
-          id: String(m.id),
-          name: m.name,
-          initials: m.initials || (m.name || "M").slice(0, 2).toUpperCase(),
-          role: m.role || m.designation || "Mentor",
-          company: m.company || "—",
-          industry: m.industry || "—",
-          location: m.location || "—",
-          rating: Number(m.rating ?? 0),
-          reviewCount: Number(m.reviews ?? 0),
-          sessionCount: Number(m.sessions ?? 0),
-          verified: Boolean(m.verified),
-          available: Boolean(m.available),
-          skills: m.skills ?? [],
-          minPrice: Number(m.pricePerSession ?? 0),
-        })),
-      );
+      setMentors((data.mentors ?? []).map(normalizeMentorFromApi));
     } catch (err) {
       console.error(err);
       setError("Could not load saved mentors.");
@@ -64,13 +39,71 @@ export function SavedMentors({ onFindMentors }: { onFindMentors?: () => void }) 
   }, []);
 
   const remove = async (id: string) => {
+    const previous = mentors;
     setMentors((prev) => prev.filter((m) => m.id !== id));
+    if (selectedMentor?.id === id) {
+      setSelectedMentor(null);
+      setBookingService(null);
+    }
     try {
       await apiFetch(`/api/mentors/save/${id}`, { method: "DELETE" });
     } catch (err) {
       console.error(err);
-      void load();
+      setMentors(previous);
+      setError("Could not remove mentor from saved list.");
     }
+  };
+
+  const openProfile = async (mentorId: string) => {
+    setProfileError("");
+    setProfileLoading(true);
+
+    // Show list data immediately, then refresh from profile API
+    const cached = mentors.find((m) => m.id === mentorId) ?? null;
+    if (cached) setSelectedMentor(cached);
+
+    try {
+      const data = await apiFetch<{ mentor: any }>(`/api/mentors/${mentorId}`);
+      const full = normalizeMentorFromApi(data.mentor);
+      setSelectedMentor(full);
+      setMentors((prev) =>
+        prev.map((m) => (m.id === mentorId ? full : m)),
+      );
+    } catch (err) {
+      console.error(err);
+      if (!cached) {
+        setProfileError("Could not load mentor profile.");
+        setSelectedMentor(null);
+      }
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  const handleBookingConfirm = async (
+    booking: {
+      mentorId: string;
+      mentorName: string;
+      service: string;
+      serviceId: string;
+      sessionType: Service["type"];
+      date: string;
+      time: string;
+      amount: number;
+      requirements?: string;
+    },
+  ) => {
+    await apiFetch("/api/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        mentor_id: Number(booking.mentorId),
+        service_id: Number(booking.serviceId || bookingService?.id),
+        date: booking.date,
+        time: booking.time,
+        requirements: booking.requirements,
+        amount: booking.amount,
+      }),
+    });
   };
 
   const filtered = mentors.filter((m) => {
@@ -136,61 +169,52 @@ export function SavedMentors({ onFindMentors }: { onFindMentors?: () => void }) 
       {!loading && !error && filtered.length > 0 && (
         <div className="space-y-3">
           {filtered.map((mentor) => (
-            <div key={mentor.id} className="rounded-2xl border border-border bg-surface p-4">
-              <div className="flex items-start gap-3">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
-                  {mentor.initials}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-sm">{mentor.name}</p>
-                        {mentor.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {mentor.role} · {mentor.company}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => void remove(mentor.id)}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-red-600"
-                      title="Remove"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-                      {mentor.rating.toFixed(1)} ({mentor.reviewCount})
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {mentor.location}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <BookmarkCheck className="h-3.5 w-3.5" />
-                      From ₹{mentor.minPrice.toLocaleString()}
-                    </span>
-                    <span className={mentor.available ? "text-primary" : "text-amber-600"}>
-                      {mentor.available ? "Available" : "Unavailable"}
-                    </span>
-                  </div>
-                  {mentor.skills.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {mentor.skills.slice(0, 4).map((skill) => (
-                        <span key={skill} className="rounded-lg bg-muted px-2 py-0.5 text-[11px] font-medium">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <MentorCard
+              key={mentor.id}
+              mentor={mentor}
+              isSaved
+              onSave={() => void remove(mentor.id)}
+              onView={() => void openProfile(mentor.id)}
+            />
           ))}
         </div>
+      )}
+
+      {profileError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {profileError}
+        </div>
+      )}
+
+      {profileLoading && !selectedMentor && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40">
+          <div className="rounded-xl bg-surface px-5 py-4 text-sm font-medium shadow-lg">
+            Loading mentor profile…
+          </div>
+        </div>
+      )}
+
+      {selectedMentor && (
+        <MentorProfile
+          mentor={selectedMentor}
+          isSaved
+          onSave={() => void remove(selectedMentor.id)}
+          onBook={(service) => setBookingService(service)}
+          onClose={() => {
+            setSelectedMentor(null);
+            setBookingService(null);
+            setProfileError("");
+          }}
+        />
+      )}
+
+      {bookingService && selectedMentor && (
+        <BookingModal
+          mentor={selectedMentor}
+          service={bookingService}
+          onClose={() => setBookingService(null)}
+          onConfirm={handleBookingConfirm}
+        />
       )}
     </div>
   );
