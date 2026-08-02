@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/auth";
 import {
   GraduationCap, MapPin, Clock, Search, X,
   CheckCircle2, XCircle, AlertCircle, Eye,
-  ChevronRight, Calendar, DollarSign,
+  ChevronRight, Calendar,
 } from "lucide-react";
 
 type AppStatus =
@@ -220,9 +220,7 @@ function DetailDrawer({ intern, onClose }: { intern: AppliedInternship; onClose:
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <MapPin className="h-3 w-3" />{intern.location}
                 </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <DollarSign className="h-3 w-3" />{intern.stipend}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{intern.stipend}</span>
               </div>
               {intern.ppoChance && (
                 <span className="mt-1.5 inline-flex items-center gap-1 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[11px] font-semibold text-primary">

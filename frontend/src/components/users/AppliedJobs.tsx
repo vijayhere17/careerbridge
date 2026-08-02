@@ -4,7 +4,7 @@ import {
   Briefcase, MapPin, Clock, Search, X,
   CheckCircle2, XCircle, AlertCircle, Eye,
   ChevronRight, ExternalLink, FileText, Calendar,
-  Building2, DollarSign,
+  Building2,
 } from "lucide-react";
 
 type AppStatus =
@@ -222,9 +222,7 @@ function DetailDrawer({ job, onClose }: { job: AppliedJob; onClose: () => void }
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <MapPin className="h-3 w-3" />{job.location}
                 </span>
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <DollarSign className="h-3 w-3" />{job.salary}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{job.salary}</span>
               </div>
             </div>
           </div>
