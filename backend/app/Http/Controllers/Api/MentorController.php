@@ -511,14 +511,17 @@ class MentorController extends Controller
         $booking->loadMissing('candidate');
 
         if ($request->input('action') === 'accept') {
-            $meetLink = $booking->meet_link ?: (
-                'https://meet.careerbridge.app/session/' . $booking->id . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8))
-            );
+            $meetLink = null;
+            $updates = ['status' => 'confirmed'];
 
-            $booking->update([
-                'status' => 'confirmed',
-                'meet_link' => $meetLink,
-            ]);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('mentor_bookings', 'meet_link')) {
+                $meetLink = $booking->meet_link ?: (
+                    'https://meet.careerbridge.app/session/' . $booking->id . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8))
+                );
+                $updates['meet_link'] = $meetLink;
+            }
+
+            $booking->update($updates);
 
             if ($booking->candidate) {
                 app(NotificationService::class)->notify(
