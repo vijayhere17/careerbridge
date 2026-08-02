@@ -9,10 +9,10 @@ import {
   DollarSign, Mic, FileText, ThumbsUp,
 } from "lucide-react";
 
-type SessionType = "Chat" | "Audio Call" | "Video Call";
-type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Completed" | "Upcoming";
+export type SessionType = "Chat" | "Audio Call" | "Video Call";
+export type BookingStatus = "Pending" | "Accepted" | "Rejected" | "Completed" | "Upcoming";
 
-interface Service {
+export interface Service {
   id: string;
   title: string;
   duration: number | string;
@@ -21,7 +21,7 @@ interface Service {
   description: string;
 }
 
-interface Review {
+export interface Review {
   id: string;
   candidateName?: string;
   candidate?: string;
@@ -30,7 +30,7 @@ interface Review {
   date: string;
 }
 
-interface Mentor {
+export interface Mentor {
   id: string;
   name: string;
   initials: string;
@@ -53,7 +53,7 @@ interface Mentor {
   experienceLabel?: string;
 }
 
-interface Booking {
+export interface Booking {
   id: string;
   mentorId: string;
   mentorName: string;
@@ -64,6 +64,60 @@ interface Booking {
   amount: number;
   status: BookingStatus;
   requirements?: string;
+}
+
+/** Normalize mentor API payloads for Find Mentors / Saved Mentors profile UI. */
+export function normalizeMentorFromApi(m: any): Mentor {
+  return {
+    ...m,
+    id: String(m.id),
+    name: m.name ?? "Mentor",
+    initials:
+      m.initials ||
+      (m.name || "M")
+        .split(" ")
+        .map((x: string) => x[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase(),
+    role: m.role || m.designation || "Mentor",
+    company: m.company || "—",
+    industry: m.industry || "—",
+    experience: m.experienceLabel ?? (m.experience ? `${m.experience}+ yrs` : "—"),
+    location: m.location || "—",
+    languages: m.languages ?? [],
+    skills: m.skills ?? [],
+    bio: m.bio ?? "",
+    services: (Array.isArray(m.services) ? m.services : []).map((s: any) => ({
+      id: String(s.id),
+      title: s.title,
+      duration:
+        typeof s.duration === "string"
+          ? Number.parseInt(s.duration, 10) || 30
+          : Number(s.duration ?? 30),
+      price: Number(s.price ?? 0),
+      type: (s.type || s.session_type || "Video Call") as SessionType,
+      description: s.description ?? "",
+    })),
+    testimonials: (Array.isArray(m.testimonials)
+      ? m.testimonials
+      : Array.isArray(m.reviewsList)
+        ? m.reviewsList
+        : []
+    ).map((t: any) => ({
+      id: String(t.id),
+      candidateName: t.candidateName || t.candidate || "Candidate",
+      rating: Number(t.rating ?? 0),
+      comment: t.comment ?? "",
+      date: t.date || t.submittedDate || "",
+    })),
+    reviews: Number(m.reviews ?? m.reviewCount ?? 0),
+    sessions: Number(m.sessions ?? m.sessionCount ?? 0),
+    rating: Number(m.rating ?? 0),
+    verified: Boolean(m.verified),
+    available: Boolean(m.available),
+    pricePerSession: Number(m.pricePerSession ?? 0),
+  };
 }
 
 type View = "list" | "profile" | "book" | "bookings" | "saved";
@@ -119,7 +173,7 @@ function EmptyState({ icon: Icon, title, body }: { icon: React.ElementType; titl
   );
 }
 
-function MentorCard({
+export function MentorCard({
   mentor, isSaved, onSave, onView,
 }: {
   mentor: Mentor; isSaved: boolean; onSave: () => void; onView: () => void;
@@ -128,7 +182,18 @@ function MentorCard({
     ? Math.min(...mentor.services.map((s) => s.price))
     : (mentor.pricePerSession ?? 0);
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/40 hover:shadow-sm">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onView}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onView();
+        }
+      }}
+      className="rounded-xl border border-border bg-surface p-4 transition-all hover:border-primary/40 hover:shadow-sm cursor-pointer"
+    >
       <div className="flex items-start gap-3">
         <div className="relative shrink-0">
           <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
@@ -149,6 +214,7 @@ function MentorCard({
               <p className="text-xs text-muted-foreground truncate">{mentor.role} · {mentor.company}</p>
             </div>
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onSave(); }}
               className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
             >
@@ -180,7 +246,8 @@ function MentorCard({
               <span className="text-[11px] text-muted-foreground"> / session</span>
             </div>
             <button
-              onClick={onView}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onView(); }}
               className="shrink-0 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               View Profile
@@ -192,7 +259,7 @@ function MentorCard({
   );
 }
 
-function MentorProfile({
+export function MentorProfile({
   mentor, isSaved, onSave, onBook, onClose,
 }: {
   mentor: Mentor; isSaved: boolean; onSave: () => void; onBook: (service: Service) => void; onClose: () => void;
@@ -433,7 +500,7 @@ function normalizeSlotLabel(slot: string): string {
   return `${String(hour).padStart(2, "0")}:${minute} ${period}`;
 }
 
-function BookingModal({
+export function BookingModal({
   mentor, service, onClose, onConfirm,
 }: {
   mentor: Mentor; service: Service; onClose: () => void;
@@ -954,35 +1021,7 @@ const [bookings, setBookings] = useState<Booking[]>([]);
     async function loadMentors() {
       try {
         const data = await apiFetch<{ mentors: any[] }>("/api/mentors");
-        const normalized = (data.mentors ?? []).map((m) => ({
-          ...m,
-          id: String(m.id),
-          experience: m.experienceLabel ?? (m.experience ? `${m.experience}+ yrs` : "—"),
-          languages: m.languages ?? [],
-          skills: m.skills ?? [],
-          services: (m.services ?? []).map((s: any) => ({
-            id: String(s.id),
-            title: s.title,
-            duration: typeof s.duration === "string"
-              ? Number.parseInt(s.duration, 10) || 30
-              : Number(s.duration ?? 30),
-            price: Number(s.price ?? 0),
-            type: (s.type || "Video Call") as SessionType,
-            description: s.description ?? "",
-          })),
-          testimonials: (m.testimonials ?? []).map((t: any) => ({
-            id: String(t.id),
-            candidateName: t.candidateName || t.candidate || "Candidate",
-            rating: Number(t.rating ?? 0),
-            comment: t.comment ?? "",
-            date: t.date || t.submittedDate || "",
-          })),
-          reviews: Number(m.reviews ?? 0),
-          sessions: Number(m.sessions ?? 0),
-          rating: Number(m.rating ?? 0),
-          pricePerSession: Number(m.pricePerSession ?? 0),
-        })) as Mentor[];
-        setMentors(normalized);
+        setMentors((data.mentors ?? []).map(normalizeMentorFromApi));
       } catch (err) {
         console.error(err);
       } finally {
