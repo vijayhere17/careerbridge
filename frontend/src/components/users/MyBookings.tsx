@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
   Calendar, Clock, Video, Phone, MessageCircle,
-  CheckCircle2, XCircle, AlertCircle, ChevronRight,
-  Star, X, Send, Filter,
+  CheckCircle2, XCircle, AlertCircle,
+  Star, X, Send,
 } from "lucide-react";
 import { useEffect } from "react";
 import { apiFetch } from "@/lib/auth";
+import { toast } from "sonner";
 
 type SessionType = "Chat" | "Audio Call" | "Video Call";
 type BookingStatus =
@@ -134,14 +135,89 @@ function ReviewModal({ booking, onClose, onSubmit }: {
   );
 }
 
-function BookingCard({ booking, onReview, onCancel }: {
+function RescheduleModal({
+  booking,
+  onClose,
+  onSubmit,
+}: {
+  booking: Booking;
+  onClose: () => void;
+  onSubmit: (date: string, time: string) => Promise<void>;
+}) {
+  const [date, setDate] = useState(booking.date);
+  const [time, setTime] = useState(booking.time);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 lg:items-center">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-sm">Reschedule session</h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {booking.service} with {booking.mentorName}
+        </p>
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold text-muted-foreground uppercase">Date</label>
+          <input
+            type="date"
+            value={date}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(e) => setDate(e.target.value)}
+            className="dash-input w-full"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] font-semibold text-muted-foreground uppercase">Time</label>
+          <input
+            type="text"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            placeholder="10:00 AM"
+            className="dash-input w-full"
+          />
+        </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 rounded-xl border border-border py-2.5 text-sm font-semibold">
+            Cancel
+          </button>
+          <button
+            disabled={!date || !time || saving}
+            onClick={async () => {
+              setSaving(true);
+              setError("");
+              try {
+                await onSubmit(date, time);
+              } catch (err: any) {
+                setError(err?.message || "Could not reschedule.");
+              } finally {
+                setSaving(false);
+              }
+            }}
+            className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookingCard({ booking, onReview, onCancel, onReschedule }: {
   booking: Booking;
   onReview: (b: Booking) => void;
   onCancel: (id: string) => void;
+  onReschedule: (b: Booking) => void;
 }) {
-  const status = STATUS_CONFIG[booking.status];
+  const status = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.Pending;
   const StatusIcon = status.icon;
-  const SessionIcon = SESSION_ICONS[booking.sessionType];
+  const SessionIcon = SESSION_ICONS[booking.sessionType] ?? Video;
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -182,20 +258,30 @@ function BookingCard({ booking, onReview, onCancel }: {
           )}
 
           {booking.status === "Upcoming" && (
-            <div className="mt-3 flex gap-2">
-              {booking.meetLink && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {booking.meetLink ? (
                 <a
                   href={booking.meetLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                  className="flex-1 min-w-[110px] flex items-center justify-center gap-1.5 rounded-lg bg-primary py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   <Video className="h-3.5 w-3.5" /> Join Session
                 </a>
+              ) : (
+                <div className="flex-1 min-w-[110px] rounded-lg border border-dashed border-border py-2 text-center text-[11px] text-muted-foreground">
+                  Meeting link after accept
+                </div>
               )}
               <button
+                onClick={() => onReschedule(booking)}
+                className="flex-1 min-w-[90px] rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted transition-colors"
+              >
+                Reschedule
+              </button>
+              <button
                 onClick={() => onCancel(booking.id)}
-                className="flex-1 rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted transition-colors"
+                className="flex-1 min-w-[90px] rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
@@ -203,16 +289,32 @@ function BookingCard({ booking, onReview, onCancel }: {
           )}
 
           {booking.status === "Pending" && (
-            <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
-              <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-              <p className="text-[11px] text-amber-700">Waiting for mentor to accept your request</p>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <p className="text-[11px] text-amber-700">Waiting for mentor to accept your request</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onReschedule(booking)}
+                  className="flex-1 rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted transition-colors"
+                >
+                  Reschedule
+                </button>
+                <button
+                  onClick={() => onCancel(booking.id)}
+                  className="flex-1 rounded-lg border border-border py-2 text-xs font-semibold hover:bg-muted transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
           {booking.status === "Rejected" && (
             <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-red-50 border border-red-100 px-3 py-2">
               <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
-              <p className="text-[11px] text-red-600">Mentor declined. Your payment will be refunded.</p>
+              <p className="text-[11px] text-red-600">Mentor declined. Payment has been refunded.</p>
             </div>
           )}
 
@@ -239,38 +341,72 @@ function BookingCard({ booking, onReview, onCancel }: {
 
 export function MyBookings() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<BookingStatus | "all">("all");
   const [reviewTarget, setReviewTarget] = useState<Booking | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<Booking | null>(null);
 
   const filtered = activeTab === "all"
     ? bookings
-    : bookings.filter((b) => b.status === activeTab);
+    : activeTab === "Cancelled"
+      ? bookings.filter((b) => b.status === "Cancelled" || b.status === "Rejected")
+      : bookings.filter((b) => b.status === activeTab);
 
   const counts: Record<string, number> = {
     all: bookings.length,
     Upcoming: bookings.filter((b) => b.status === "Upcoming").length,
     Pending: bookings.filter((b) => b.status === "Pending").length,
     Completed: bookings.filter((b) => b.status === "Completed").length,
+    Cancelled: bookings.filter((b) => b.status === "Cancelled" || b.status === "Rejected").length,
   };
 
   const handleCancel = async (id: string) => {
-  try {
-    await apiFetch(`/api/bookings/${id}/cancel`, {
-      method: "PATCH",
-    });
+    try {
+      await apiFetch(`/api/bookings/${id}/cancel`, {
+        method: "PATCH",
+      });
 
+      setBookings((prev) =>
+        prev.map((b) =>
+          b.id === id
+            ? { ...b, status: "Cancelled" as BookingStatus, meetLink: undefined }
+            : b,
+        ),
+      );
+      toast.success("Booking cancelled. Refund processed if payment was held.");
+    } catch (err: any) {
+      console.error(err);
+      setError("Could not cancel booking.");
+      toast.error(err?.message || "Could not cancel booking.");
+    }
+  };
+
+  const handleReschedule = async (date: string, time: string) => {
+    if (!rescheduleTarget) return;
+    const data = await apiFetch<{ booking: any }>(
+      `/api/bookings/${rescheduleTarget.id}/reschedule`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ date, time }),
+      },
+    );
     setBookings((prev) =>
       prev.map((b) =>
-        b.id === id
-          ? { ...b, status: "Cancelled" as BookingStatus }
-          : b
-      )
+        b.id === rescheduleTarget.id
+          ? {
+              ...b,
+              date: data.booking.date,
+              time: data.booking.time,
+              status: (data.booking.status as BookingStatus) || "Pending",
+              meetLink: undefined,
+            }
+          : b,
+      ),
     );
-  } catch (err) {
-    console.error(err);
-  }
-};
-
+    setRescheduleTarget(null);
+    toast.success("Session rescheduled. Mentor will confirm the new slot.");
+  };
 
   const handleReviewSubmit = async (rating: number, comment: string) => {
     if (!reviewTarget) return;
@@ -285,8 +421,11 @@ export function MyBookings() {
         ),
       );
       setReviewTarget(null);
-    } catch (err) {
+      toast.success("Review submitted. Thanks for your feedback!");
+    } catch (err: any) {
       console.error(err);
+      setError("Could not submit review.");
+      toast.error(err?.message || "Could not submit review.");
     }
   };
 
@@ -299,6 +438,8 @@ export function MyBookings() {
 
   useEffect(() => {
   const loadBookings = async () => {
+    setLoading(true);
+    setError("");
     try {
       const data = await apiFetch<{ bookings: any[] }>("/api/bookings");
 
@@ -320,12 +461,15 @@ export function MyBookings() {
           amount: Number(b.amount),
           status: b.status as BookingStatus,
           requirements: b.requirements,
-          meetLink: b.meetLink,
+          meetLink: b.meetLink || undefined,
           reviewed: Boolean(b.reviewed),
         }))
       );
     } catch (error) {
       console.error(error);
+      setError("Could not load bookings.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -364,7 +508,28 @@ export function MyBookings() {
         ))}
       </div>
 
-      {filtered.length === 0 ? (
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-xl border border-border bg-surface p-4 animate-pulse">
+              <div className="flex gap-3">
+                <div className="h-11 w-11 rounded-xl bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 w-1/3 rounded bg-muted" />
+                  <div className="h-3 w-1/2 rounded bg-muted" />
+                  <div className="h-3 w-2/3 rounded bg-muted" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-muted mb-3">
             <Calendar className="h-7 w-7 text-muted-foreground" />
@@ -382,6 +547,7 @@ export function MyBookings() {
               booking={booking}
               onReview={setReviewTarget}
               onCancel={handleCancel}
+              onReschedule={setRescheduleTarget}
             />
           ))}
         </div>
@@ -392,6 +558,14 @@ export function MyBookings() {
           booking={reviewTarget}
           onClose={() => setReviewTarget(null)}
           onSubmit={handleReviewSubmit}
+        />
+      )}
+
+      {rescheduleTarget && (
+        <RescheduleModal
+          booking={rescheduleTarget}
+          onClose={() => setRescheduleTarget(null)}
+          onSubmit={handleReschedule}
         />
       )}
     </div>

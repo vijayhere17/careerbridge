@@ -75,7 +75,12 @@ class MentorUpcomingSessionController extends Controller
             ])->save();
 
             if (! $alreadyCredited && (float) $booking->amount > 0) {
-                $payout = round(((float) $booking->amount) * 0.7, 2);
+                // Mentor earns 70% of the session fee (exclude platform fee if total was charged).
+                $sessionFee = (float) ($booking->service?->price ?? $booking->amount);
+                if ($sessionFee <= 0) {
+                    $sessionFee = (float) $booking->amount;
+                }
+                $payout = round($sessionFee * 0.7, 2);
 
                 $this->walletService->credit(
                     $user,

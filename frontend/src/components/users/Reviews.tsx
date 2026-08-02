@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/auth";
+import { toast } from "sonner";
 import { Star, Send, X, CheckCircle2, MessageSquare, ThumbsUp, Edit2 } from "lucide-react";
 
 type ReviewStatus = "pending" | "submitted";
@@ -16,56 +17,6 @@ interface Review {
   helpfulCount: number;
   submittedDate?: string;
 }
-
-const MOCK_REVIEWS: Review[] = [
-  {
-    id: "r1",
-    mentorName: "Priya Sharma",
-    mentorInitials: "PS",
-    service: "PM Mock Interview",
-    sessionDate: "2025-07-15",
-    rating: 5,
-    comment: "Priya's mock interview was incredibly realistic and structured. She gave detailed, actionable feedback on my product sense and execution answers. Highly recommend for anyone preparing for PM roles at top companies!",
-    status: "submitted",
-    helpfulCount: 12,
-    submittedDate: "2025-07-16",
-  },
-  {
-    id: "r2",
-    mentorName: "Rahul Verma",
-    mentorInitials: "RV",
-    service: "System Design Deep Dive",
-    sessionDate: "2025-07-05",
-    rating: 5,
-    comment: "Rahul is an exceptional mentor for system design. He walked me through designing a URL shortener end-to-end and gave me frameworks I could apply to any problem. Cracked Amazon SDE-2 after this session!",
-    status: "submitted",
-    helpfulCount: 8,
-    submittedDate: "2025-07-06",
-  },
-  {
-    id: "r3",
-    mentorName: "Meera Pillai",
-    mentorInitials: "MP",
-    service: "Resume & LinkedIn Makeover",
-    sessionDate: "2025-06-28",
-    rating: 0,
-    comment: "",
-    status: "pending",
-    helpfulCount: 0,
-  },
-  {
-    id: "r4",
-    mentorName: "Anjali Menon",
-    mentorInitials: "AM",
-    service: "ML Interview Prep",
-    sessionDate: "2025-06-20",
-    rating: 4,
-    comment: "Great session overall. Anjali was very knowledgeable about ML theory and gave good practice questions. Could have spent more time on coding but the conceptual depth was excellent.",
-    status: "submitted",
-    helpfulCount: 5,
-    submittedDate: "2025-06-21",
-  },
-];
 
 function StarInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hovered, setHovered] = useState(0);
@@ -333,10 +284,11 @@ const handleSubmit = async (
       );
 
       setEditTarget(null);
+      toast.success("Review submitted. Mentor rating updated.");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error(error);
-    alert("Failed to submit review.");
+    toast.error(error?.message || "Failed to submit review.");
   }
 };
 

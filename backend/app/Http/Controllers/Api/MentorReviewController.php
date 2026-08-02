@@ -4,12 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MentorReviewResource;
+use App\Models\MentorProfile;
 use App\Models\MentorReview;
 use App\Models\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class MentorReviewController extends Controller
 {
+    public function __construct(private NotificationService $notifications)
+    {
+    }
+
     private function authUser(Request $request): ?User
     {
         $token = $request->bearerToken() ?: $request->header('X-API-TOKEN');
@@ -26,16 +32,16 @@ class MentorReviewController extends Controller
     {
         $user = $this->authUser($request);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
         $reviews = MentorReview::with([
-    'mentor.user',
-    'booking.service',
-])
+            'mentor.user',
+            'booking.service',
+        ])
             ->where('user_id', $user->id)
             ->latest()
             ->get();
@@ -52,9 +58,9 @@ class MentorReviewController extends Controller
     {
         $user = $this->authUser($request);
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized',
             ], 401);
         }
 
@@ -75,10 +81,32 @@ class MentorReviewController extends Controller
             'submitted_at' => now(),
         ]);
 
+        $mentor = MentorProfile::find($review->mentor_id);
+        if ($mentor) {
+            $submitted = MentorReview::where('mentor_id', $mentor->id)
+                ->where('status', 'submitted')
+                ->whereNotNull('rating');
+
+            $mentor->update([
+                'rating' => round((float) $submitted->avg('rating'), 1),
+                'review_count' => (int) $submitted->count(),
+            ]);
+
+            if ($mentor->user) {
+                $this->notifications->notify(
+                    $mentor->user,
+                    'New review received',
+                    ($user->name ?: 'A candidate') . ' left a ' . $request->rating . '★ review.',
+                    'review',
+                    ['review_id' => $review->id, 'booking_id' => $review->booking_id]
+                );
+            }
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Review submitted successfully.',
-            'review' => new MentorReviewResource($review),
+            'review' => new MentorReviewResource($review->fresh()->load(['mentor.user', 'booking.service'])),
         ]);
     }
 }

@@ -186,6 +186,7 @@ class MentorDashboardController extends Controller
                     'time' => $booking->time,
                     'duration' => (int) ($booking->service?->duration ?? 30),
                     'amount' => (int) $booking->amount,
+                    'meetLink' => $booking->meet_link,
                     'status' => $booking->status,
                     'paymentStatus' => $booking->payment_status,
                 ];
@@ -269,9 +270,21 @@ class MentorDashboardController extends Controller
 
                 'month' => (float) $monthlyEarnings,
 
-                'pending' => (float) WalletTransaction::where('user_id', $user->id)
-                    ->where('status', 'pending')
-                    ->sum('amount'),
+                'pending' => (float) (
+                    WalletTransaction::where('user_id', $user->id)
+                        ->where('status', 'pending')
+                        ->sum('amount')
+                    + MentorBooking::with('service')
+                        ->where('mentor_id', $profile->id)
+                        ->where('status', 'confirmed')
+                        ->whereIn('payment_status', ['escrow', 'pending'])
+                        ->get()
+                        ->sum(function (MentorBooking $booking) {
+                            $fee = (float) ($booking->service?->price ?? $booking->amount);
+
+                            return round(max($fee, 0) * 0.7, 2);
+                        })
+                ),
             ],
 
             'upcoming_sessions' => $upcomingSessions,

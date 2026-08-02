@@ -20,6 +20,7 @@ class MentorBooking extends Model
         'amount',
         'status',
         'payment_status',
+        'meet_link',
     ];
 
     public function mentor(): BelongsTo

@@ -452,7 +452,9 @@ const priceRange = !prices.length
         price: Number(data.price),
         duration: Number(data.duration),
         type: data.type,
+        session_type: data.type,
         active: data.active,
+        status: data.active ? "active" : "inactive",
       }),
     });
 
@@ -464,8 +466,9 @@ const priceRange = !prices.length
     ]);
 
     setShowForm(false);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Add mentor service error:", error);
+    alert(error?.message || "Could not save service. Please try again.");
   }
 };
 
@@ -481,7 +484,16 @@ const priceRange = !prices.length
       service: ApiService;
     }>(`/api/mentor/services/${editTarget.id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        title: data.title,
+        description: data.description,
+        price: Number(data.price),
+        duration: Number(data.duration),
+        type: data.type,
+        session_type: data.type,
+        active: data.active,
+        status: data.active ? "active" : "inactive",
+      }),
     });
 
     setServices((prev) =>
@@ -493,8 +505,9 @@ const priceRange = !prices.length
     );
 
     setEditTarget(null);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Update mentor service error:", error);
+    alert(error?.message || "Could not update service. Please try again.");
   }
 };
 
