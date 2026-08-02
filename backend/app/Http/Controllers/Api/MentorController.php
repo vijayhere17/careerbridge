@@ -416,12 +416,17 @@ class MentorController extends Controller
 
         $needsReaccept = in_array($booking->status, ['confirmed', 'accepted'], true);
 
-        $booking->update([
+        $rescheduleUpdates = [
             'date' => $data['date'],
             'time' => $data['time'],
             'status' => $needsReaccept ? 'pending' : $booking->status,
-            'meet_link' => $needsReaccept ? null : $booking->meet_link,
-        ]);
+        ];
+
+        if ($needsReaccept && \Illuminate\Support\Facades\Schema::hasColumn('mentor_bookings', 'meet_link')) {
+            $rescheduleUpdates['meet_link'] = null;
+        }
+
+        $booking->update($rescheduleUpdates);
 
         if ($booking->mentor?->user) {
             app(NotificationService::class)->notify(
