@@ -175,3 +175,104 @@
   font-size: 0.875rem;
   outline: none;
 }
+
+/* ── Oppverse Job Seeker dashboard theme (scoped) ── */
+.oppverse-seeker {
+  --background: #f4f7fc;
+  --foreground: #0a1a3a;
+  --surface: #ffffff;
+  --surface-foreground: #0a1a3a;
+  --card: #ffffff;
+  --card-foreground: #0a1a3a;
+  --primary: #0055cc;
+  --primary-foreground: #ffffff;
+  --primary-soft: #e8f0ff;
+  --secondary: #003399;
+  --secondary-foreground: #ffffff;
+  --secondary-soft: #e6ecff;
+  --accent: #ff8c00;
+  --accent-foreground: #3a1e00;
+  --accent-soft: #fff4e5;
+  --muted: #eef2f9;
+  --muted-foreground: #5a6b85;
+  --border: #d9e2f0;
+  --input: #d9e2f0;
+  --ring: #0066ff;
+  font-family: var(--font-display);
+}
+
+.oppverse-seeker .gradient-primary,
+.oppverse-seeker.gradient-primary {
+  background-image: linear-gradient(135deg, #003399 0%, #0066ff 58%, #1a7cff 100%);
+}
+
+.oppverse-seeker .ov-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(90% 80% at 0% 0%, rgb(0 102 255 / 0.14), transparent 55%),
+    radial-gradient(70% 70% at 100% 10%, rgb(255 140 0 / 0.12), transparent 50%),
+    radial-gradient(50% 60% at 70% 100%, rgb(0 51 153 / 0.08), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+  border: 1px solid rgb(0 85 204 / 0.12);
+}
+
+.oppverse-seeker .ov-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -20% -40% 40%;
+  height: 140%;
+  background: radial-gradient(circle at center, rgb(0 102 255 / 0.06), transparent 60%);
+  pointer-events: none;
+}
+
+.oppverse-seeker .ov-accent-bar {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #003399 0%, #0066ff 45%, #ff8c00 100%);
+}
+
+.oppverse-seeker .ov-cta-primary {
+  background: linear-gradient(135deg, #ff8c00, #ffb800);
+  color: #2a1600;
+  box-shadow: 0 8px 24px -10px rgb(255 140 0 / 0.55);
+}
+
+.oppverse-seeker .ov-cta-primary:hover {
+  filter: brightness(1.04);
+}
+
+.oppverse-seeker .ov-cta-secondary {
+  background: #003399;
+  color: #fff;
+}
+
+.oppverse-seeker .ov-cta-secondary:hover {
+  background: #0055cc;
+}
+
+.oppverse-seeker .ov-fade-up {
+  animation: ov-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.oppverse-seeker .ov-fade-up-delay-1 { animation-delay: 0.06s; }
+.oppverse-seeker .ov-fade-up-delay-2 { animation-delay: 0.12s; }
+.oppverse-seeker .ov-fade-up-delay-3 { animation-delay: 0.18s; }
+
+.oppverse-seeker .ov-nav-active {
+  background: linear-gradient(135deg, #003399, #0066ff);
+  color: #fff;
+  box-shadow: 0 8px 20px -10px rgb(0 85 204 / 0.55);
+}
+
+@keyframes ov-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

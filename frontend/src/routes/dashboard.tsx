@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { OpportunitiesHub } from "@/components/users/OpportunitiesHub";
 import { FindMentors } from "@/components/users/FindMentors";
 import { MyBookings } from "@/components/users/MyBookings";
@@ -26,12 +26,13 @@ import { MentorSetupPage } from "@/components/mentor/MentorSetup";
 import { MentorReviewPage } from "@/components/mentor/MentorReview";
 import { useEffect, useMemo, useState } from "react";
 import {
-  Bell, BriefcaseBusiness, CalendarDays, Compass, FileText,
+  Bell, BriefcaseBusiness, CalendarDays, FileText,
   GraduationCap, HandCoins, Home, LayoutDashboard, LogOut,
   Settings, Star, UserRound, UsersRound, Wallet,
-  CheckCircle, ArrowRight, Award, X, Menu,
+  CheckCircle, ArrowRight, Award, X, Menu, Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { apiFetch, clearAuth, getAuthToken, setAuth, type AuthUser } from "@/lib/auth";
 
 type MentorSession = {
@@ -78,7 +79,7 @@ mentor: [
 };
 
 const roleTheme: Record<Role, { name: string; gradient: string; accent: string }> = {
-  seeker:               { name: "Job Seeker", gradient: "from-emerald-500 to-teal-600",   accent: "text-emerald-600" },
+  seeker:               { name: "Job Seeker", gradient: "from-[#003399] to-[#0066FF]",   accent: "text-[#0055CC]" },
   mentor:               { name: "Mentor",     gradient: "from-violet-500 to-purple-600",  accent: "text-violet-600" },
   opportunity_provider: { name: "Recruiter",  gradient: "from-orange-500 to-amber-600",  accent: "text-orange-600" },
   admin:                { name: "Admin",      gradient: "from-red-500 to-rose-600",       accent: "text-red-600" },
@@ -296,6 +297,7 @@ const renderContent = () => {
     if (user.role === "seeker") {
         if (active === "Dashboard Home") return (
     <CandidateDashboard
+    firstName={firstName}
     sessions={sessions}
     upcomingSessions={upcomingSessions}
     dashboardStats={dashboardStats}
@@ -336,29 +338,30 @@ const renderContent = () => {
     return <FeaturePanel item={activeItem} role={theme.name} />;
 };
 
+  const isSeeker = user.role === "seeker";
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`min-h-screen bg-background flex flex-col ${isSeeker ? "oppverse-seeker" : ""}`}>
+      {isSeeker && <div className="ov-accent-bar" />}
 
       {/* ── Top header ── */}
-      <header className="sticky top-0 z-30 border-b border-border bg-surface">
+      <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur-md">
         <div className="container-page flex h-16 items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
               className="grid h-9 w-9 place-items-center rounded-xl border border-border hover:bg-muted transition-colors lg:hidden"
+              aria-label="Open menu"
             >
               <Menu className="h-4 w-4" />
             </button>
-            <Link to="/" className="flex items-center gap-2 font-display font-bold text-base">
-              <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-                <Compass className="h-4 w-4" />
-              </span>
-              <span className="hidden sm:inline font-display">Career <span className="text-primary">Bridge</span></span>
-            </Link>
+            <BrandLogo size="sm" />
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden md:block text-xs text-muted-foreground">{theme.name}</span>
+            <span className={`hidden md:inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${isSeeker ? "bg-primary-soft text-primary" : "text-muted-foreground"}`}>
+              {theme.name}
+            </span>
             <button
               onClick={logout}
               className="flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted transition-colors"
@@ -391,35 +394,42 @@ const renderContent = () => {
           {/* Sidebar inner — scrollable */}
           <div className="flex flex-col h-full lg:h-auto lg:sticky lg:top-14 overflow-y-auto">
 
-            {/* Profile card */}
+            {/* Profile panel */}
             <div className="gradient-primary p-5 lg:rounded-none">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/20 text-white font-bold text-base backdrop-blur-sm">
-                    {initials}
-                  </div>
-                  <div>
-                    <p className="font-bold text-white text-sm">{firstName}</p>
-                    <p className="text-white/70 text-[11px]">{theme.name}</p>
-                  </div>
-                </div>
+              <div className="mb-4 flex items-center justify-between lg:hidden">
+                <BrandLogo
+                  size="sm"
+                  asLink={false}
+                  wordmarkClassName="[&_span]:!text-white"
+                />
                 <button
                   onClick={() => setSidebarOpen(false)}
-                  className="lg:hidden grid h-8 w-8 place-items-center rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  className="grid h-8 w-8 place-items-center rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors"
+                  aria-label="Close menu"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
+              <div className="flex items-center gap-3 mb-4">
+                <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/20 text-white font-bold text-base backdrop-blur-sm ring-1 ring-white/25">
+                  {initials}
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm">{firstName}</p>
+                  <p className="text-white/70 text-[11px]">{theme.name}</p>
+                </div>
+              </div>
+
               {/* Quick stats for seeker */}
-              {user.role === "seeker" && (
+              {isSeeker && (
                 <div className="grid grid-cols-3 gap-2">
-                 {[
-    { label: "Sessions", value: dashboardStats.bookings },
-    { label: "Applied", value: dashboardStats.appliedJobs },
-    { label: "Saved", value: dashboardStats.savedMentors },
-].map(({ label, value }) => (
-                    <div key={label} className="rounded-lg bg-white/10 p-2 text-center backdrop-blur-sm">
+                  {[
+                    { label: "Sessions", value: dashboardStats.bookings },
+                    { label: "Applied", value: dashboardStats.appliedJobs },
+                    { label: "Saved", value: dashboardStats.savedMentors },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-lg bg-white/10 p-2 text-center backdrop-blur-sm ring-1 ring-white/10">
                       <p className="text-white font-bold text-base">{value}</p>
                       <p className="text-white/70 text-[10px]">{label}</p>
                     </div>
@@ -428,27 +438,27 @@ const renderContent = () => {
               )}
 
               {user.role === "mentor" && (
-  <div className="grid grid-cols-3 gap-2">
-    {[
-      { label: "Sessions", value: String(mentorSidebarStats.sessions) },
-      { label: "Rating", value: mentorSidebarStats.rating ? mentorSidebarStats.rating.toFixed(1) : "—" },
-      {
-        label: "Wallet",
-        value: mentorSidebarStats.wallet >= 1000
-          ? `₹${Math.round(mentorSidebarStats.wallet / 1000)}K`
-          : `₹${Math.round(mentorSidebarStats.wallet)}`,
-      },
-    ].map(({ label, value }) => (
-      <div
-        key={label}
-        className="rounded-lg bg-white/10 p-2 text-center backdrop-blur-sm"
-      >
-        <p className="text-white font-bold text-base">{value}</p>
-        <p className="text-white/70 text-[10px]">{label}</p>
-      </div>
-    ))}
-  </div>
-)}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Sessions", value: String(mentorSidebarStats.sessions) },
+                    { label: "Rating", value: mentorSidebarStats.rating ? mentorSidebarStats.rating.toFixed(1) : "—" },
+                    {
+                      label: "Wallet",
+                      value: mentorSidebarStats.wallet >= 1000
+                        ? `₹${Math.round(mentorSidebarStats.wallet / 1000)}K`
+                        : `₹${Math.round(mentorSidebarStats.wallet)}`,
+                    },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-lg bg-white/10 p-2 text-center backdrop-blur-sm"
+                    >
+                      <p className="text-white font-bold text-base">{value}</p>
+                      <p className="text-white/70 text-[10px]">{label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Nav items */}
@@ -463,7 +473,7 @@ const renderContent = () => {
                     className={`
                       flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all
                       ${isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? (isSeeker ? "ov-nav-active" : "bg-primary text-primary-foreground shadow-sm")
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"}
                     `}
                   >
@@ -494,7 +504,7 @@ const renderContent = () => {
       </div>
 
       {/* ── Bottom nav (mobile only, seeker) ── */}
-      {user.role === "seeker" && (
+      {isSeeker && (
         <nav className="fixed bottom-0 left-0 right-0 z-30 lg:hidden border-t border-border bg-surface/95 backdrop-blur-sm">
           <div className="flex items-center justify-around px-2 py-2">
             {BOTTOM_NAV_ITEMS.map(({ label, icon: Icon }) => {
@@ -505,7 +515,7 @@ const renderContent = () => {
                   onClick={() => navigate(label)}
                   className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all"
                 >
-                  <div className={`grid h-8 w-8 place-items-center rounded-xl transition-all ${isActive ? "bg-primary" : "bg-transparent"}`}>
+                  <div className={`grid h-8 w-8 place-items-center rounded-xl transition-all ${isActive ? "ov-nav-active" : "bg-transparent"}`}>
                     <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-muted-foreground"}`} />
                   </div>
                   <span className={`text-[10px] font-medium leading-none ${isActive ? "text-primary" : "text-muted-foreground"}`}>
@@ -526,6 +536,7 @@ const renderContent = () => {
 }
 
 function CandidateDashboard({
+  firstName,
   sessions,
   upcomingSessions,
   dashboardStats,
@@ -533,6 +544,7 @@ function CandidateDashboard({
   featuredMentors,
   onNavigate,
 }: {
+  firstName: string;
   sessions: MentorSession[];
   upcomingSessions: MentorSession[];
   dashboardStats: {
@@ -563,33 +575,37 @@ function CandidateDashboard({
   const upcoming = upcomingSessions.slice(0, 3);
 
   const stats = [
-  {
-    label: "Sessions",
-    value: dashboardStats.bookings.toString(),
-    icon: CalendarDays,
-  },
-  {
-    label: "Applied",
-    value: dashboardStats.appliedJobs.toString(),
-    icon: BriefcaseBusiness,
-  },
-  {
-    label: "Saved",
-    value: dashboardStats.savedMentors.toString(),
-    icon: UserRound,
-  },
-  {
-    label: "Balance",
-    value: `₹${dashboardStats.walletBalance}`,
-    icon: Wallet,
-  },
-];
+    {
+      label: "Sessions",
+      value: dashboardStats.bookings.toString(),
+      icon: CalendarDays,
+      hint: "Booked",
+    },
+    {
+      label: "Applied",
+      value: dashboardStats.appliedJobs.toString(),
+      icon: BriefcaseBusiness,
+      hint: "Roles",
+    },
+    {
+      label: "Saved",
+      value: dashboardStats.savedMentors.toString(),
+      icon: UserRound,
+      hint: "Mentors",
+    },
+    {
+      label: "Balance",
+      value: `₹${dashboardStats.walletBalance}`,
+      icon: Wallet,
+      hint: "Wallet",
+    },
+  ];
 
   const quickActions = [
-    { label: "Find a Mentor",  desc: "Connect with experts",     icon: UsersRound,      nav: "Find Mentors" },
-    { label: "Browse Jobs",    desc: "Explore opportunities",    icon: BriefcaseBusiness, nav: "Opportunities Hub" },
-    { label: "My Bookings",    desc: "View upcoming sessions",   icon: CalendarDays,    nav: "My Bookings" },
-    { label: "My Wallet",      desc: "Balance & transactions",   icon: Wallet,          nav: "Wallet" },
+    { label: "Find a Mentor",  desc: "Connect with experts",     icon: UsersRound,        nav: "Find Mentors",       accent: true },
+    { label: "Browse Jobs",    desc: "Explore opportunities",    icon: BriefcaseBusiness, nav: "Opportunities Hub",  accent: false },
+    { label: "My Bookings",    desc: "View upcoming sessions",   icon: CalendarDays,      nav: "My Bookings",        accent: false },
+    { label: "My Wallet",      desc: "Balance & transactions",   icon: Wallet,            nav: "Wallet",             accent: false },
   ];
 
   const checklist = checklistProp.length > 0 ? checklistProp : [
@@ -600,68 +616,138 @@ function CandidateDashboard({
   ];
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {stats.map(({ label, value, icon: Icon }) => (
-          <div key={label} className="rounded-2xl border border-border bg-surface p-4">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 mb-3">
+    <div className="space-y-6">
+      {/* Welcome hero */}
+      <section className="ov-hero ov-fade-up relative p-5 sm:p-7">
+        <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="mb-3 flex items-center gap-2.5">
+              <img
+                src="/logo.jpeg"
+                alt="Oppverse"
+                className="h-10 w-10 rounded-xl object-contain bg-white shadow-sm ring-1 ring-black/5"
+              />
+              <div className="leading-tight">
+                <p className="font-display text-sm font-bold tracking-tight">
+                  <span className="text-[#003399]">Opp</span>
+                  <span className="text-[#0066FF]">verse</span>
+                </p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  Opportunity Universe
+                </p>
+              </div>
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[#0a1a3a]">
+              Welcome back, {firstName}
+            </h1>
+            <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
+              Mentors, roles, and your next breakthrough — all in one place.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => onNavigate("Find Mentors")}
+              className="ov-cta-primary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all"
+            >
+              <Sparkles className="h-4 w-4" />
+              Find a Mentor
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("Opportunities Hub")}
+              className="ov-cta-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all"
+            >
+              Browse Jobs
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats */}
+      <div className="ov-fade-up ov-fade-up-delay-1 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {stats.map(({ label, value, icon: Icon, hint }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() =>
+              onNavigate(
+                label === "Sessions" ? "My Bookings"
+                  : label === "Applied" ? "Applied Jobs"
+                  : label === "Saved" ? "Saved Mentors"
+                  : "Wallet",
+              )
+            }
+            className="rounded-2xl border border-border/80 bg-surface/90 p-4 text-left transition-all hover:border-primary/35 hover:-translate-y-0.5"
+          >
+            <div className="mb-3 grid h-9 w-9 place-items-center rounded-xl bg-primary-soft">
               <Icon className="h-4 w-4 text-primary" />
             </div>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-          </div>
+            <p className="font-display text-2xl font-bold tracking-tight">{value}</p>
+            <p className="mt-0.5 text-xs font-semibold text-foreground/80">{label}</p>
+            <p className="text-[11px] text-muted-foreground">{hint}</p>
+          </button>
         ))}
       </div>
 
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Quick Actions</p>
+      {/* Quick actions */}
+      <section className="ov-fade-up ov-fade-up-delay-2">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Quick Actions</p>
         <div className="grid grid-cols-2 gap-3">
-          {quickActions.map(({ label, desc, icon: Icon, nav }) => (
+          {quickActions.map(({ label, desc, icon: Icon, nav, accent }) => (
             <button
               key={label}
+              type="button"
               onClick={() => onNavigate(nav)}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 text-left hover:border-primary/40 hover:shadow-sm transition-all group"
+              className="group flex items-center gap-3 rounded-2xl border border-border/80 bg-surface p-4 text-left transition-all hover:border-primary/40 hover:-translate-y-0.5"
             >
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10">
-                <Icon className="h-5 w-5 text-primary" />
+              <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${accent ? "ov-cta-primary" : "bg-primary-soft"}`}>
+                <Icon className={`h-5 w-5 ${accent ? "" : "text-primary"}`} />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold group-hover:text-primary transition-colors leading-tight">{label}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+                <p className="text-sm font-semibold leading-tight group-hover:text-primary transition-colors">{label}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">{desc}</p>
               </div>
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Upcoming Sessions</p>
-            <button onClick={() => onNavigate("My Bookings")} className="text-xs text-primary font-medium hover:underline">View all</button>
+      <div className="ov-fade-up ov-fade-up-delay-3 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-border/80 bg-surface p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Upcoming Sessions</p>
+            <button type="button" onClick={() => onNavigate("My Bookings")} className="text-xs font-semibold text-primary hover:underline">
+              View all
+            </button>
           </div>
           {upcoming.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-center">
-              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-muted mb-3">
-                <CalendarDays className="h-6 w-6 text-muted-foreground" />
+              <div className="mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-primary-soft">
+                <CalendarDays className="h-6 w-6 text-primary" />
               </div>
-              <p className="text-sm font-medium">No sessions booked</p>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">Book a session with a mentor</p>
-              <button onClick={() => onNavigate("Find Mentors")} className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
+              <p className="text-sm font-semibold">No sessions booked</p>
+              <p className="mt-1 mb-3 text-xs text-muted-foreground">Book a session with a mentor</p>
+              <button
+                type="button"
+                onClick={() => onNavigate("Find Mentors")}
+                className="ov-cta-primary rounded-xl px-4 py-2 text-xs font-bold transition-all"
+              >
                 Find a Mentor
               </button>
             </div>
           ) : (
             <div className="space-y-2">
               {upcoming.map((s) => (
-                <div key={s.id} className="flex items-start gap-3 rounded-xl border border-border p-3">
-                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10">
+                <div key={s.id} className="flex items-start gap-3 rounded-xl border border-border/70 p-3">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary-soft">
                     <CalendarDays className="h-4 w-4 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate">{s.topic}</p>
+                    <p className="truncate text-sm font-semibold">{s.topic}</p>
                     <p className="text-xs text-muted-foreground">with {s.mentor_name}</p>
-                    <p className="text-[11px] text-primary mt-0.5">
+                    <p className="mt-0.5 text-[11px] font-medium text-primary">
                       {new Date(s.scheduled_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -669,16 +755,17 @@ function CandidateDashboard({
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="rounded-2xl border border-border bg-surface p-4">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Getting Started</p>
+        <section className="rounded-2xl border border-border/80 bg-surface p-4">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Getting Started</p>
           <div className="space-y-2">
             {checklist.map(({ step, title, desc, done, nav }) => (
               <button
                 key={step}
+                type="button"
                 onClick={() => onNavigate(nav)}
-                className="w-full flex items-center gap-3 rounded-xl border border-border p-3 text-left hover:border-primary/40 transition-all group"
+                className="group flex w-full items-center gap-3 rounded-xl border border-border/70 p-3 text-left transition-all hover:border-primary/40"
               >
                 <div className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                   {done ? <CheckCircle className="h-4 w-4" /> : step}
@@ -687,18 +774,18 @@ function CandidateDashboard({
                   <p className={`text-xs font-semibold ${done ? "line-through text-muted-foreground" : "group-hover:text-primary transition-colors"}`}>{title}</p>
                   <p className="text-[11px] text-muted-foreground">{desc}</p>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               </button>
             ))}
           </div>
-        </div>
+        </section>
       </div>
 
       {featuredMentors.length > 0 && (
-        <div className="rounded-2xl border border-border bg-surface p-4">
+        <section className="rounded-2xl border border-border/80 bg-surface p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Featured Mentors</p>
-            <button onClick={() => onNavigate("Find Mentors")} className="text-xs font-medium text-primary hover:underline">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Featured Mentors</p>
+            <button type="button" onClick={() => onNavigate("Find Mentors")} className="text-xs font-semibold text-primary hover:underline">
               Browse all
             </button>
           </div>
@@ -706,11 +793,12 @@ function CandidateDashboard({
             {featuredMentors.slice(0, 6).map((mentor) => (
               <button
                 key={mentor.id}
+                type="button"
                 onClick={() => onNavigate("Find Mentors")}
-                className="rounded-xl border border-border p-3 text-left hover:border-primary/40 transition-all"
+                className="rounded-xl border border-border/70 p-3 text-left transition-all hover:border-primary/40"
               >
-                <p className="text-sm font-semibold truncate">{mentor.name}</p>
-                <p className="text-[11px] text-muted-foreground truncate">{mentor.role || "Mentor"}</p>
+                <p className="truncate text-sm font-semibold">{mentor.name}</p>
+                <p className="truncate text-[11px] text-muted-foreground">{mentor.role || "Mentor"}</p>
                 <p className="mt-1 text-xs font-semibold text-primary">
                   ★ {(mentor.rating ?? 0).toFixed(1)}
                   {mentor.pricePerSession ? ` · from ₹${mentor.pricePerSession}` : ""}
@@ -718,31 +806,32 @@ function CandidateDashboard({
               </button>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="rounded-2xl border border-border bg-surface p-4">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Explore</p>
+      <section className="rounded-2xl border border-border/80 bg-surface p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Explore</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
-            { label: "Top Mentors",       icon: Award,           nav: "Find Mentors" },
+            { label: "Top Mentors",       icon: Award,             nav: "Find Mentors" },
             { label: "Latest Jobs",       icon: BriefcaseBusiness, nav: "Opportunities Hub" },
-            { label: "Notifications",     icon: Bell,            nav: "Notifications" },
-            { label: "Saved Mentors",     icon: UserRound,       nav: "Saved Mentors" },
-            { label: "My Reviews",        icon: Star,            nav: "Reviews" },
-            { label: "Profile",           icon: Settings,        nav: "Profile Settings" },
+            { label: "Notifications",     icon: Bell,              nav: "Notifications" },
+            { label: "Saved Mentors",     icon: UserRound,         nav: "Saved Mentors" },
+            { label: "My Reviews",        icon: Star,              nav: "Reviews" },
+            { label: "Profile",           icon: Settings,          nav: "Profile Settings" },
           ].map(({ label, icon: Icon, nav }) => (
             <button
               key={label}
+              type="button"
               onClick={() => onNavigate(nav)}
-              className="flex items-center gap-2 rounded-xl border border-border p-3 hover:border-primary/40 hover:bg-muted/30 transition-all"
+              className="flex items-center gap-2 rounded-xl border border-border/70 p-3 transition-all hover:border-primary/40 hover:bg-primary-soft/50"
             >
-              <Icon className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-xs font-medium truncate">{label}</span>
+              <Icon className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate text-xs font-medium">{label}</span>
             </button>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

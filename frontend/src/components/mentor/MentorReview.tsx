@@ -2,9 +2,10 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Clock3, ShieldCheck, FileCheck2, Search, BadgeCheck, Rocket,
-  RefreshCw, LogOut, Compass, AlertTriangle, Info,
+  RefreshCw, LogOut, AlertTriangle, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import { apiFetch, clearAuth, type AuthUser } from "@/lib/auth";
 
 type OnboardingStatus = "profile_setup" | "under_review" | "approved" | "rejected";
@@ -23,14 +24,7 @@ type UserStatusResponse = {
    ──────────────────────────────────────────────────────────── */
 
 function BrandHeader() {
-  return (
-    <div className="flex items-center gap-2 font-display font-bold text-base">
-      <span className="grid h-8 w-8 place-items-center rounded-lg gradient-primary text-primary-foreground">
-        <Compass className="h-4 w-4" />
-      </span>
-      <span className="font-display">Career <span className="text-primary">Bridge</span></span>
-    </div>
-  );
+  return <BrandLogo size="sm" asLink={false} />;
 }
 
 type FlowStepState = "done" | "active" | "pending";
