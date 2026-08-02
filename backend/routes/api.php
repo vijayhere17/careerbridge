@@ -431,6 +431,7 @@ Route::post('bookings',                       [MentorController::class, 'storeBo
 Route::get('bookings',                        [MentorController::class, 'bookings']);
 Route::get('bookings/{booking}',              [MentorController::class, 'showBooking']);
 Route::patch('bookings/{booking}/cancel',     [MentorController::class, 'cancelBooking']);
+Route::patch('bookings/{booking}/reschedule', [MentorController::class, 'reschedule']);
 Route::post('bookings/{booking}/review',      [MentorController::class, 'submitReview']);
 
 // ── MENTOR PANEL ──────────────────────────────────────────────────────────────

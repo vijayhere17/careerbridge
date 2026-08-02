@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { apiFetch } from "@/lib/auth";
+import { toast } from "sonner";
 import {
   Search, SlidersHorizontal, Star, Bookmark, BookmarkCheck,
   MapPin, Briefcase, X, ChevronRight, ArrowLeft,
@@ -572,7 +573,7 @@ function BookingModal({
         sessionType: selectedService.type,
         date,
         time,
-        amount: selectedService.price,
+        amount: total,
         requirements,
       });
       setStep("success");
@@ -715,8 +716,8 @@ function BookingModal({
                 ["Time", time],
                 ["Duration", `${selectedService.duration} min`],
                 ["Session fee", `₹${selectedService.price.toLocaleString()}`],
-                ["Platform fee", `₹${platformFee.toLocaleString()}`],
-                ["Total", `₹${total.toLocaleString()}`],
+                ["Platform fee (5%)", `₹${platformFee.toLocaleString()}`],
+                ["Total payable", `₹${total.toLocaleString()}`],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{label}</span>
@@ -724,7 +725,7 @@ function BookingModal({
                 </div>
               ))}
               <div className="rounded-xl bg-muted/50 p-3 text-xs text-muted-foreground">
-                Payment is deducted from your wallet and held in escrow until the session is completed.
+                Total payable is deducted from your wallet and held in escrow until the session is completed.
                 {walletBalance !== null && (
                   <p className="mt-1 font-semibold text-foreground">Wallet balance: ₹{walletBalance.toLocaleString()}</p>
                 )}
@@ -774,7 +775,7 @@ function BookingModal({
               onClick={onClose}
               className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground"
             >
-              Done
+              Go to My Bookings
             </button>
           </div>
         )}
@@ -1087,6 +1088,8 @@ const handleBookingConfirm = async (
     },
     ...prev,
   ]);
+
+  toast.success("Booking created. Mentor has been notified.");
 };
 
 const filteredMentors = mentors.filter((m) => {

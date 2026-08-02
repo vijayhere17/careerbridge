@@ -89,8 +89,13 @@ class MentorIncomingRequestController extends Controller
 
         $booking->loadMissing(['candidate', 'service']);
 
+        $meetLink = $booking->meet_link ?: (
+            'https://meet.careerbridge.app/session/' . $booking->id . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8))
+        );
+
         $booking->update([
             'status' => 'confirmed',
+            'meet_link' => $meetLink,
         ]);
 
         if ($booking->candidate) {
@@ -98,9 +103,19 @@ class MentorIncomingRequestController extends Controller
                 $booking->candidate,
                 'Booking accepted',
                 ($user->name ?: 'Your mentor') . ' accepted your session request'
-                    . ($booking->service?->title ? ' for ' . $booking->service->title : '') . '.',
+                    . ($booking->service?->title ? ' for ' . $booking->service->title : '')
+                    . ' on ' . $booking->date . ' at ' . $booking->time . '.',
                 'booking',
-                ['booking_id' => $booking->id, 'status' => 'confirmed']
+                ['booking_id' => $booking->id, 'status' => 'confirmed', 'meet_link' => $meetLink]
+            );
+
+            $this->notifications->notify(
+                $booking->candidate,
+                'Session reminder',
+                'Your mentoring session is scheduled for ' . $booking->date . ' at ' . $booking->time
+                    . '. Join from My Bookings when it is time.',
+                'booking',
+                ['booking_id' => $booking->id, 'type' => 'reminder', 'meet_link' => $meetLink]
             );
         }
 
@@ -108,6 +123,7 @@ class MentorIncomingRequestController extends Controller
             'success' => true,
             'message' => 'Booking accepted successfully.',
             'booking_status' => $booking->status,
+            'meet_link' => $meetLink,
         ]);
     }
 

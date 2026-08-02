@@ -16,7 +16,7 @@ class StoreMentorBookingRequest extends FormRequest
         return [
             'mentor_id' => ['required', 'exists:mentor_profiles,id'],
             'service_id' => ['required', 'exists:mentor_services,id'],
-            'date' => ['required', 'date'],
+            'date' => ['required', 'date', 'after_or_equal:today'],
             'time' => ['required', 'string', 'max:50'],
             'requirements' => ['nullable', 'string', 'max:1000'],
             'amount' => ['nullable', 'numeric', 'min:0'],

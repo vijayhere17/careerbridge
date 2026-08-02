@@ -5,6 +5,7 @@ import {
   AlertCircle, DollarSign,
 } from "lucide-react";
 import { apiFetch } from "@/lib/auth";
+import { toast } from "sonner";
 
 type SessionType = "Video Call" | "Audio Call" | "Chat";
 type RequestStatus = "pending" | "accepted" | "rejected";
@@ -24,82 +25,6 @@ interface Request {
   requirements?: string;
   requestedAt: string;
 }
-
-const MOCK_REQUESTS: Request[] = [
-  {
-    id: "r1",
-    candidateName: "Rohan Mehta",
-    candidateInitials: "RM",
-    candidateRole: "Software Engineer, 3 yrs",
-    service: "PM Mock Interview",
-    sessionType: "Video Call",
-    date: "2025-07-22",
-    time: "11:00 AM",
-    duration: 60,
-    amount: 1499,
-    status: "pending",
-    requirements: "I want to practice product sense and estimation questions for Google PM role. Please focus on structured frameworks.",
-    requestedAt: "2 hours ago",
-  },
-  {
-    id: "r2",
-    candidateName: "Sneha Kapoor",
-    candidateInitials: "SK",
-    candidateRole: "MBA Student",
-    service: "Career Guidance Session",
-    sessionType: "Audio Call",
-    date: "2025-07-23",
-    time: "04:00 PM",
-    duration: 30,
-    amount: 699,
-    status: "pending",
-    requirements: "Transitioning from MBA to product management. Need advice on breaking in without prior PM experience.",
-    requestedAt: "5 hours ago",
-  },
-  {
-    id: "r3",
-    candidateName: "Arjun Patel",
-    candidateInitials: "AP",
-    candidateRole: "Product Manager, 2 yrs",
-    service: "Resume & Portfolio Review",
-    sessionType: "Video Call",
-    date: "2025-07-24",
-    time: "10:00 AM",
-    duration: 45,
-    amount: 999,
-    status: "pending",
-    requirements: "Applying to senior PM roles at Series B startups. Please review my resume and case study portfolio.",
-    requestedAt: "1 day ago",
-  },
-  {
-    id: "r4",
-    candidateName: "Prachi Shah",
-    candidateInitials: "PS",
-    candidateRole: "Business Analyst, 4 yrs",
-    service: "Quick Chat",
-    sessionType: "Chat",
-    date: "2025-07-20",
-    time: "02:00 PM",
-    duration: 15,
-    amount: 299,
-    status: "accepted",
-    requestedAt: "2 days ago",
-  },
-  {
-    id: "r5",
-    candidateName: "Karan Singh",
-    candidateInitials: "KS",
-    candidateRole: "Engineer, 1 yr",
-    service: "Career Guidance Session",
-    sessionType: "Audio Call",
-    date: "2025-07-18",
-    time: "06:00 PM",
-    duration: 30,
-    amount: 699,
-    status: "rejected",
-    requestedAt: "3 days ago",
-  },
-];
 
 const SESSION_ICONS: Record<string, React.ElementType> = {
   "Video Call": Video,
@@ -318,12 +243,18 @@ const handleAccept = async (id: string) => {
     );
 
     setRequests((prev) =>
-      prev.filter((request) => request.id !== id)
+      prev.map((request) =>
+        request.id === id
+          ? { ...request, status: "accepted" as RequestStatus }
+          : request,
+      ),
     );
 
     setSelected(null);
-  } catch (error) {
+    toast.success("Booking accepted. Session moved to Upcoming.");
+  } catch (error: any) {
     console.error("Accept booking error:", error);
+    toast.error(error?.message || "Could not accept booking.");
   }
 };
 
@@ -337,12 +268,18 @@ const handleReject = async (id: string) => {
     );
 
     setRequests((prev) =>
-      prev.filter((request) => request.id !== id)
+      prev.map((request) =>
+        request.id === id
+          ? { ...request, status: "rejected" as RequestStatus }
+          : request,
+      ),
     );
 
     setSelected(null);
-  } catch (error) {
+    toast.success("Booking declined. Payment refunded to seeker.");
+  } catch (error: any) {
     console.error("Reject booking error:", error);
+    toast.error(error?.message || "Could not decline booking.");
   }
 };
 

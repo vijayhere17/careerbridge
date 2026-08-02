@@ -335,9 +335,11 @@ class MentorController extends Controller
             return response()->json(['message' => 'This booking cannot be cancelled.'], 422);
         }
 
-        $booking->loadMissing('candidate');
+        $booking->loadMissing(['candidate', 'mentor.user', 'service']);
 
-        DB::transaction(function () use ($booking) {
+        $refunded = false;
+
+        DB::transaction(function () use ($booking, &$refunded) {
             $shouldRefund = in_array($booking->payment_status, ['escrow', 'pending'], true)
                 && (float) $booking->amount > 0
                 && $booking->candidate;
@@ -357,21 +359,84 @@ class MentorController extends Controller
                     'success',
                     'REFUND-' . $booking->id
                 );
+                $refunded = true;
             }
         });
 
+        $notifications = app(NotificationService::class);
+
         if ($booking->candidate) {
-            app(NotificationService::class)->notify(
+            $notifications->notify(
                 $booking->candidate,
                 'Booking cancelled',
-                'Your booking #' . $booking->id . ' was cancelled' .
-                    ($booking->payment_status === 'refunded' ? ' and payment refunded.' : '.'),
+                'Your booking #' . $booking->id . ' was cancelled'
+                    . ($refunded ? ' and payment refunded.' : '.'),
+                'booking',
+                ['booking_id' => $booking->id, 'status' => 'cancelled']
+            );
+        }
+
+        if ($booking->mentor?->user) {
+            $notifications->notify(
+                $booking->mentor->user,
+                'Booking cancelled',
+                ($booking->candidate?->name ?: 'A candidate') . ' cancelled the session'
+                    . ($booking->service?->title ? ' for ' . $booking->service->title : '') . '.',
                 'booking',
                 ['booking_id' => $booking->id, 'status' => 'cancelled']
             );
         }
 
         return response()->json([
+            'booking' => new MentorBookingResource($booking->fresh()->load(['mentor.user', 'service', 'candidate'])),
+        ]);
+    }
+
+    public function reschedule(Request $request, MentorBooking $booking)
+    {
+        $user = $this->auth($request);
+        if (! $user || $user->role !== 'seeker') {
+            return response()->json(['message' => 'Only candidates can reschedule bookings.'], 403);
+        }
+
+        if ($booking->candidate_id !== $user->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        if (! in_array($booking->status, ['pending', 'confirmed', 'accepted'], true)) {
+            return response()->json(['message' => 'This booking cannot be rescheduled.'], 422);
+        }
+
+        $data = $request->validate([
+            'date' => 'required|date|after_or_equal:today',
+            'time' => 'required|string|max:20',
+        ]);
+
+        $booking->loadMissing(['mentor.user', 'service']);
+
+        $needsReaccept = in_array($booking->status, ['confirmed', 'accepted'], true);
+
+        $booking->update([
+            'date' => $data['date'],
+            'time' => $data['time'],
+            'status' => $needsReaccept ? 'pending' : $booking->status,
+            'meet_link' => $needsReaccept ? null : $booking->meet_link,
+        ]);
+
+        if ($booking->mentor?->user) {
+            app(NotificationService::class)->notify(
+                $booking->mentor->user,
+                'Booking rescheduled',
+                ($user->name ?: 'A candidate') . ' rescheduled the session to '
+                    . $data['date'] . ' at ' . $data['time'] . '.',
+                'booking',
+                ['booking_id' => $booking->id, 'status' => $booking->status]
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Booking rescheduled successfully.',
             'booking' => new MentorBookingResource($booking->fresh()->load(['mentor.user', 'service', 'candidate'])),
         ]);
     }
@@ -446,7 +511,14 @@ class MentorController extends Controller
         $booking->loadMissing('candidate');
 
         if ($request->input('action') === 'accept') {
-            $booking->update(['status' => 'confirmed']);
+            $meetLink = $booking->meet_link ?: (
+                'https://meet.careerbridge.app/session/' . $booking->id . '-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(8))
+            );
+
+            $booking->update([
+                'status' => 'confirmed',
+                'meet_link' => $meetLink,
+            ]);
 
             if ($booking->candidate) {
                 app(NotificationService::class)->notify(
@@ -454,7 +526,16 @@ class MentorController extends Controller
                     'Booking confirmed',
                     'Your mentoring session has been confirmed.',
                     'booking',
-                    ['booking_id' => $booking->id, 'status' => 'confirmed']
+                    ['booking_id' => $booking->id, 'status' => 'confirmed', 'meet_link' => $meetLink]
+                );
+
+                app(NotificationService::class)->notify(
+                    $booking->candidate,
+                    'Session reminder',
+                    'Your mentoring session is scheduled for ' . $booking->date . ' at ' . $booking->time
+                        . '. Join from My Bookings when it is time.',
+                    'booking',
+                    ['booking_id' => $booking->id, 'type' => 'reminder', 'meet_link' => $meetLink]
                 );
             }
         } else {
@@ -501,35 +582,9 @@ class MentorController extends Controller
 
     public function completeSession(Request $request, MentorBooking $booking)
     {
-        $user = $this->auth($request);
-        if (! $user || $user->role !== 'mentor') {
-            return response()->json(['message' => 'Only mentors can mark sessions complete.'], 403);
-        }
-
-        $mentor = MentorProfile::where('user_id', $user->id)->firstOrFail();
-        if ($booking->mentor_id !== $mentor->id) {
-            return response()->json(['message' => 'Forbidden.'], 403);
-        }
-
-        if (! in_array($booking->status, ['accepted', 'upcoming'])) {
-            return response()->json(['message' => 'Booking is not in a completable state.'], 422);
-        }
-
-        $booking->update([
-            'status'         => 'completed',
-            'payment_status' => 'released',
-            'completed_at'   => now(),
-        ]);
-
-        // Release earnings to mentor wallet
-        $mentor->increment('wallet_balance', $booking->amount * 0.70);
-        $mentor->increment('total_earnings', $booking->amount * 0.70);
-        $mentor->increment('total_sessions');
-
-        return response()->json([
-            'booking'          => new MentorBookingResource($booking->fresh()),
-            'earnings_released' => $booking->amount * 0.70,
-        ]);
+        // Canonical completion path (wallet credit + review stub + notifications)
+        return app(\App\Http\Controllers\Api\MentorUpcomingSessionController::class)
+            ->complete($request, $booking->id);
     }
 
     // ── MENTOR: Manage own services ─────────────────────────────────────────

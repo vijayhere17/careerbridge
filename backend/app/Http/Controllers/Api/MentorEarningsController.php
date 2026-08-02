@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\MentorEarningTransactionResource;
+use App\Models\MentorBooking;
 use App\Models\User;
 use App\Models\Wallet;
 use App\Models\WalletTransaction;
@@ -44,9 +45,27 @@ class MentorEarningsController extends Controller
             ->where('type', 'credit')
             ->sum('amount');
 
-        $pendingBalance = WalletTransaction::where('user_id', $user->id)
+        $pendingWallet = (float) WalletTransaction::where('user_id', $user->id)
             ->where('status', 'pending')
             ->sum('amount');
+
+        // Escrow held on confirmed sessions (mentor share = 70% of session fee)
+        $escrowPending = 0.0;
+        $mentorProfile = $user->mentorProfile;
+        if ($mentorProfile) {
+            $escrowPending = (float) MentorBooking::with('service')
+                ->where('mentor_id', $mentorProfile->id)
+                ->where('status', 'confirmed')
+                ->whereIn('payment_status', ['escrow', 'pending'])
+                ->get()
+                ->sum(function (MentorBooking $booking) {
+                    $fee = (float) ($booking->service?->price ?? $booking->amount);
+
+                    return round(max($fee, 0) * 0.7, 2);
+                });
+        }
+
+        $pendingBalance = $pendingWallet + $escrowPending;
 
         $thisMonth = WalletTransaction::where('user_id', $user->id)
             ->where('type', 'credit')

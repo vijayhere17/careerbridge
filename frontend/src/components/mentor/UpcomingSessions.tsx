@@ -6,6 +6,7 @@ import {
   User, AlertCircle, DollarSign, Copy, Check,
 } from "lucide-react";
 import { apiFetch } from "@/lib/auth";
+import { toast } from "sonner";
 
 type SessionType = "Video Call" | "Audio Call" | "Chat";
 
@@ -24,65 +25,13 @@ interface Session {
   requirements?: string;
 }
 
-const MOCK_SESSIONS: Session[] = [
-  {
-    id: "us1",
-    candidateName: "Rohan Mehta",
-    candidateInitials: "RM",
-    candidateRole: "Software Engineer, 3 yrs",
-    service: "PM Mock Interview",
-    sessionType: "Video Call",
-    date: "2025-07-20",
-    time: "11:00 AM",
-    duration: 60,
-    amount: 1499,
-    meetLink: "https://meet.google.com/abc-defg-hij",
-    requirements: "Focus on product sense and estimation questions for Google PM role.",
-  },
-  {
-    id: "us2",
-    candidateName: "Sneha Kapoor",
-    candidateInitials: "SK",
-    candidateRole: "MBA Student",
-    service: "Career Guidance Session",
-    sessionType: "Audio Call",
-    date: "2025-07-22",
-    time: "04:00 PM",
-    duration: 30,
-    amount: 699,
-    requirements: "Transitioning from MBA to product management.",
-  },
-  {
-    id: "us3",
-    candidateName: "Arjun Patel",
-    candidateInitials: "AP",
-    candidateRole: "Product Manager, 2 yrs",
-    service: "Resume & Portfolio Review",
-    sessionType: "Video Call",
-    date: "2025-07-24",
-    time: "10:00 AM",
-    duration: 45,
-    amount: 999,
-    meetLink: "https://meet.google.com/xyz-uvwx-yz1",
-  },
-  {
-    id: "us4",
-    candidateName: "Prachi Shah",
-    candidateInitials: "PS",
-    candidateRole: "Business Analyst, 4 yrs",
-    service: "Quick Chat",
-    sessionType: "Chat",
-    date: "2025-07-26",
-    time: "02:00 PM",
-    duration: 15,
-    amount: 299,
-  },
-];
-
-const SESSION_ICONS: Record<SessionType, React.ElementType> = {
+const SESSION_ICONS: Record<string, React.ElementType> = {
   "Video Call": Video,
+  video: Video,
   "Audio Call": Phone,
-  "Chat":       MessageCircle,
+  audio: Phone,
+  Chat: MessageCircle,
+  chat: MessageCircle,
 };
 
 function formatDate(d: string) {
@@ -112,7 +61,7 @@ function DetailDrawer({ session, onClose, onComplete }: {
   onClose: () => void;
   onComplete: (id: string) => void;
 }) {
-  const Icon = SESSION_ICONS[session.sessionType];
+  const Icon = SESSION_ICONS[session.sessionType] ?? Video;
   const [copied, setCopied] = useState(false);
 
   const copyLink = () => {
@@ -202,7 +151,7 @@ function DetailDrawer({ session, onClose, onComplete }: {
           <div className="rounded-xl bg-muted p-3 flex items-start gap-2">
             <AlertCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Mark the session as complete after it ends to release ₹{session.amount.toLocaleString()} to your wallet.
+              Mark the session as complete after it ends to credit 70% of the session fee to your wallet.
             </p>
           </div>
         </div>
@@ -234,7 +183,7 @@ function SessionCard({ session, onView }: {
   session: Session;
   onView: () => void;
 }) {
-  const Icon = SESSION_ICONS[session.sessionType];
+  const Icon = SESSION_ICONS[session.sessionType] ?? Video;
   const today    = isToday(session.date);
   const tomorrow = isTomorrow(session.date);
 
@@ -335,8 +284,10 @@ const [loading, setLoading] = useState(true);
       });
       setSessions((prev) => prev.filter((s) => s.id !== id));
       setSelected(null);
-    } catch (error) {
+      toast.success("Session completed. Earnings credited to your wallet.");
+    } catch (error: any) {
       console.error("Complete session failed:", error);
+      toast.error(error?.message || "Could not complete session.");
     }
   };
 

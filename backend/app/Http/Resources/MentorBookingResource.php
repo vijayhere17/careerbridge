@@ -35,7 +35,12 @@ class MentorBookingResource extends JsonResource
                 ->map(fn ($part) => strtoupper(substr($part, 0, 1)))
                 ->implode(''),
             'service' => $this->service?->title ?? 'Mentoring Session',
-            'sessionType' => $this->service?->session_type ?? 'Video Call',
+            'sessionType' => match ($this->service?->session_type) {
+                'Audio Call', 'audio', 'Audio' => 'Audio Call',
+                'Chat', 'chat' => 'Chat',
+                'Video Call', 'video', 'Video' => 'Video Call',
+                default => $this->service?->session_type ?: 'Video Call',
+            },
             'date' => $this->date,
             'time' => $this->time,
             'duration' => (int) ($this->service?->duration ?? 30),
@@ -44,8 +49,9 @@ class MentorBookingResource extends JsonResource
             'statusRaw' => $rawStatus,
             'requirements' => $this->requirements,
             'paymentStatus' => $this->payment_status,
-            'meetLink' => $this->meet_link ?? null,
+            'meetLink' => $this->meet_link,
             'reviewed' => $reviewed,
+            'reference' => 'CB-BK-' . $this->id,
         ];
     }
 }

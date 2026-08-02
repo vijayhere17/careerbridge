@@ -36,10 +36,13 @@ class MentorIncomingRequestResource extends JsonResource
         'service' => $this->service?->title ?? 'Mentoring Session',
 
         'sessionType' => match ($this->service?->session_type) {
-            'audio' => 'Audio Call',
-            'chat' => 'Chat',
-            default => 'Video Call',
+            'Audio Call', 'audio', 'Audio' => 'Audio Call',
+            'Chat', 'chat' => 'Chat',
+            'Video Call', 'video', 'Video' => 'Video Call',
+            default => $this->service?->session_type ?: 'Video Call',
         },
+
+        'meetLink' => $this->meet_link,
 
         'date' => $this->date,
 
